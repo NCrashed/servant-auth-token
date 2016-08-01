@@ -38,14 +38,13 @@ resolver: lts-6.10
 packages:
 - '.'
 - location:
-    git: git@github.com:NCrashed/servant-auth-token-api.git
-    commit: 38346374a52ca98b72149ce874d704ed28f00dd4
+    git: https://github.com/NCrashed/servant-auth-token-api.git
+    commit: 8dbec85e0ea0e1f3760030967120c6659da2c5f4
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-- aeson-injector-1.0.2.0
-
+- aeson-injector-1.0.3.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}

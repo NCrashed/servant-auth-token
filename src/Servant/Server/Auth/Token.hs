@@ -28,7 +28,6 @@ import Servant
 import qualified Data.Text as T
 
 import Servant.API.Auth.Token
-import Servant.API.Auth.Token.Pagination
 import Servant.Server.Auth.Token.Common
 import Servant.Server.Auth.Token.Config
 import Servant.Server.Auth.Token.Model
@@ -334,10 +333,10 @@ authGroupGet i token = do
 -- | Inserting new user group, requires 'authUpdatePerm' for token
 authGroupPost :: UserGroup
   -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> AuthHandler UserGroupId
+  -> AuthHandler (OnlyId UserGroupId)
 authGroupPost ug token = do 
   guardAuthToken token
-  runDB $ insertUserGroup ug
+  runDB $ OnlyField <$> insertUserGroup ug
 
 -- | Replace info about given user group, requires 'authUpdatePerm' for token
 authGroupPut :: UserGroupId
@@ -369,7 +368,7 @@ authGroupDelete i token = do
 authGroupList :: Maybe Page
   -> Maybe PageSize
   -> MToken '["auth-info"] -- ^ Authorisation header with token
-  -> AuthHandler UserGroups
+  -> AuthHandler (PagedList UserGroupId UserGroup)
 authGroupList mp msize token = do 
   guardAuthToken token
   pagination mp msize $ \page size -> do 
@@ -378,9 +377,9 @@ authGroupList mp msize token = do
         is <- selectKeysList [] [Asc AuthUserGroupId, OffsetBy (fromIntegral $ page * size), LimitTo (fromIntegral size)]
         forM is $ (\i -> fmap (WithField i) <$> readUserGroup i) . fromKey)
       <*> count ([] :: [Filter AuthUserGroup])
-    return UserGroups {
-        userGroupsItems = catMaybes groups
-      , userGroupsPages = ceiling $ (fromIntegral total :: Double) / fromIntegral size
+    return PagedList {
+        pagedListItems = catMaybes groups
+      , pagedListPages = ceiling $ (fromIntegral total :: Double) / fromIntegral size
       }
 
 -- | Check whether a 'b' is contained in permission list of 'a'
