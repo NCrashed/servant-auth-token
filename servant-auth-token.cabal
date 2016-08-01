@@ -37,7 +37,7 @@ library
     , persistent-template >= 2.1 && < 2.2
     , pwstore-fast >= 2.4 && < 2.5
     , servant-auth-token-api >= 0.1 && < 0.2
-    , servant-server >= 0.7 && < 0.8
+    , servant-server >= 0.7 && < 0.9
     , smtp-mail >= 0.1 && < 0.2
     , text >= 1.2 && < 1.3
     , time >= 1.5 && < 1.6

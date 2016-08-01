@@ -2,14 +2,15 @@
 module Servant.Server.Auth.Token(
   -- * Implementation
     authServer
-  -- * Helpers
+  -- * Server API
+  , migrateAll
   , AuthMonad(..)
+  -- * Helpers
   , guardAuthToken 
   , ensureAdmin
   , authUserByToken
   , downgradeToken
   ) where 
-
 
 import Control.Monad 
 import Control.Monad.Except 

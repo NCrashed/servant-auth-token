@@ -1,6 +1,54 @@
 {-# LANGUAGE QuasiQuotes                #-}
 {-# LANGUAGE TemplateHaskell            #-}
-module Servant.Server.Auth.Token.Model where 
+module Servant.Server.Auth.Token.Model(
+  -- * DB entities
+    UserImpl(..)
+  , UserPerm(..)
+  , AuthToken(..)
+  , UserRestore(..)
+  , AuthUserGroup(..)
+  , AuthUserGroupUsers(..)
+  , AuthUserGroupPerms(..)
+  , EntityField(..)
+  -- * IDs of entities
+  , UserImplId
+  , UserPermId
+  , AuthTokenId
+  , UserRestoreId
+  , AuthUserGroupId
+  , AuthUserGroupUsersId
+  , AuthUserGroupPermsId
+  -- * Operations
+  , runDB
+  , migrateAll
+  , passToByteString
+  , byteStringToPass
+  -- ** User
+  , userToUserInfo
+  , readUserInfo
+  , getUserPermissions
+  , setUserPermissions
+  , createUser
+  , hasPerm
+  , hasPerms
+  , createAdmin
+  , ensureAdmin
+  , patchUser
+  , setUserPassword'
+  -- ** User groups
+  , getUserGroups
+  , setUserGroups
+  , validateGroups
+  , getGroupPermissions
+  , getUserGroupPermissions
+  , getUserAllPermissions
+  , readUserGroup
+  , toAuthUserGroup
+  , insertUserGroup
+  , updateUserGroup
+  , deleteUserGroup
+  , patchUserGroup
+  ) where 
 
 import Control.Monad 
 import Control.Monad.IO.Class 
