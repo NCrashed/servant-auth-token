@@ -22,10 +22,7 @@ import Data.Time.Clock
 import Data.UUID
 import Data.UUID.V4
 import Database.Persist.Postgresql
-import GHC.TypeLits
 import Servant 
-
-import qualified Data.Text as T
 
 import Servant.API.Auth.Token
 import Servant.Server.Auth.Token.Common
@@ -281,16 +278,6 @@ guardUser uid = do
     Nothing -> throw404 "User not found"
     Just user -> return user 
 
-class PermsList (a :: [Symbol]) where 
-  unliftPerms :: forall proxy . proxy a -> [Permission]
-
-instance PermsList '[] where 
-  unliftPerms _ = []
-
-instance (KnownSymbol x, PermsList xs) => PermsList (x ': xs) where 
-  unliftPerms _ = T.pack (symbolVal (Proxy :: Proxy x))
-    : unliftPerms (Proxy :: Proxy xs)
-
 -- | If the token is missing or the user of the token
 -- doesn't have needed permissions, throw 401 response
 guardAuthToken :: forall perms m . (PermsList perms, AuthMonad m) => MToken perms -> m ()
@@ -381,31 +368,3 @@ authGroupList mp msize token = do
         pagedListItems = catMaybes groups
       , pagedListPages = ceiling $ (fromIntegral total :: Double) / fromIntegral size
       }
-
--- | Check whether a 'b' is contained in permission list of 'a'
-type family ContainPerm (a :: [Symbol]) (b :: Symbol) where 
-  ContainPerm '[] b = 'False
-  ContainPerm (a ': as) a = 'True
-  ContainPerm (a ': as) b = ContainPerm as b
-
--- | Check that first set of permissions is subset of second
-type family ConatinAllPerm (a :: [Symbol]) (b :: [Symbol]) where 
-  ConatinAllPerm '[] bs = '[]
-  ConatinAllPerm (a ': as) bs = (ContainPerm bs a) ': (ConatinAllPerm as bs)
-
--- | Foldl type level list of bools, identicall to 'and'
-type family TAll (a :: [Bool]) :: Bool where 
-  TAll '[] = 'True
-  TAll ('True ': as) = TAll as 
-  TAll ('False ': as) = 'False 
-
--- | Check that first set of permissions is subset of second, throw error if not
-type PermsSubset (a :: [Symbol]) (b :: [Symbol]) = TAll (ConatinAllPerm a b)
-
--- | Cast token to permissions that are lower than original one
-downgradeToken' :: 'True ~ PermsSubset ts' ts => Token ts -> Token ts' 
-downgradeToken' = Token . unToken 
-
--- | Cast token to permissions that are lower than original one
-downgradeToken :: 'True ~ PermsSubset ts' ts => MToken ts -> MToken ts'
-downgradeToken = fmap downgradeToken'
