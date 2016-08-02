@@ -34,13 +34,6 @@ install:
    fi
  - travis_retry cabal update -v
  - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
-
- # clone dependency (temp)
- - git clone https://github.com/NCrashed/servant-auth-token-api.git
- - cd servant-auth-token-api
- - cabal install 
- - cd ..
-
  - cabal install --only-dependencies --enable-tests --enable-benchmarks --dry -v > installplan.txt
  - sed -i -e '1,/^Resolving /d' installplan.txt; cat installplan.txt
 
@@ -72,6 +65,11 @@ install:
 script:
  - if [ -f configure.ac ]; then autoreconf -i; fi
 
+ # clone dependency (temp)
+ - git clone https://github.com/NCrashed/servant-auth-token-api.git
+ - cabal sandbox init 
+ - cabal sandbox add-source servant-auth-token-api
+ 
  - cabal configure --enable-tests --enable-benchmarks -v2  # -v2 provides useful information for debugging
  - cabal build   # this builds all libraries and executables (including tests/benchmarks)
  - cabal test
