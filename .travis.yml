@@ -64,12 +64,6 @@ install:
 # any command which exits with a non-zero exit code causes the build to fail.
 script:
  - if [ -f configure.ac ]; then autoreconf -i; fi
-
- # clone dependency (temp)
- - git clone https://github.com/NCrashed/servant-auth-token-api.git
- - cabal sandbox init 
- - cabal sandbox add-source servant-auth-token-api
- 
  - cabal configure --enable-tests --enable-benchmarks -v2  # -v2 provides useful information for debugging
  - cabal build   # this builds all libraries and executables (including tests/benchmarks)
  - cabal test
