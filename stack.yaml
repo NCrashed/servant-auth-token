@@ -37,14 +37,15 @@ resolver: lts-6.10
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - '.'
-- location:
-    git: https://github.com/NCrashed/servant-auth-token-api.git
-    commit: ed640bdb0bcde9580c1c1752c5e578024305b843
+#- location:
+#    git: https://github.com/NCrashed/servant-auth-token-api.git
+#    commit: ed640bdb0bcde9580c1c1752c5e578024305b843
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - aeson-injector-1.0.3.0
+- servant-auth-token-api-0.1.0.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}
