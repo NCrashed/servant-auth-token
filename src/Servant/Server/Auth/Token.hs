@@ -123,8 +123,10 @@ authSignin mlogin mpass mexpire = do
 calcExpire :: Maybe Seconds -> AuthHandler UTCTime
 calcExpire mexpire = do 
   t <- liftIO getCurrentTime
-  dt <- getsConfig defaultExpire
-  return $ maybe dt fromIntegral mexpire `addUTCTime` t
+  AuthConfig{..} <- getConfig
+  let requestedExpire = maybe defaultExpire fromIntegral mexpire 
+  let boundedExpire = maybe requestedExpire (min requestedExpire) maximumExpire
+  return $ boundedExpire `addUTCTime` t
 
 -- prolong token with new timestamp
 touchToken :: Entity AuthToken -> UTCTime -> AuthHandler SimpleToken
