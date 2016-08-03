@@ -85,6 +85,7 @@ import Database.Persist.Postgresql
 import Servant 
 
 import Servant.API.Auth.Token
+import Servant.API.Auth.Token.Pagination
 import Servant.Server.Auth.Token.Common
 import Servant.Server.Auth.Token.Config
 import Servant.Server.Auth.Token.Model
