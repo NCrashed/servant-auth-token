@@ -12,6 +12,7 @@ category:            Web
 build-type:          Simple
 extra-source-files:
   README.md
+  CHANGELOG.md
 cabal-version:       >=1.10
 
 library
