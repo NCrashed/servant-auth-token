@@ -10,7 +10,8 @@ maintainer:          ncrashed@gmail.com
 copyright:           2016 Anton Gushcha
 category:            Web
 build-type:          Simple
--- extra-source-files:
+extra-source-files:
+  README.md
 cabal-version:       >=1.10
 
 library
