@@ -24,6 +24,13 @@ data AuthConfig = AuthConfig {
   -- prevent almost all kinds of bruteforce attacks, rainbow
   -- tables and dictionary attacks.
   , passwordsStrength :: !Int
+  -- | Validates user password at registration / password change.
+  -- 
+  -- If the function returns 'Just', then a 400 error is raised with
+  -- specified text.
+  --
+  -- Default value doesn't validate passwords at all.
+  , passwordValidator :: !(Text -> Maybe Text)
   -- | Which template to use for password restoration
   , restoreEmailTemplate :: !Text
   -- | Title of email for password restoration
@@ -50,6 +57,7 @@ defaultAuthConfig pool = AuthConfig {
   , defaultExpire = fromIntegral (600 :: Int)
   , restoreExpire = fromIntegral (3*24*3600 :: Int) -- 3 days
   , passwordsStrength = 17
+  , passwordValidator = const Nothing
   , restoreEmailTitle = "Restore password on fitclubs"
   , restoreEmailSourceAddress = "admin@fitclubs.teaspotstudio.ru"
   , restoreEmailTemplate = "email.mustache"

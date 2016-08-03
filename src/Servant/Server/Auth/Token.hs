@@ -19,6 +19,7 @@ import Crypto.PasswordStore
 import Data.Aeson.WithField
 import Data.Maybe
 import Data.Monoid
+import Data.Text.Encoding
 import Data.Time.Clock
 import Data.UUID
 import Data.UUID.V4
@@ -32,6 +33,8 @@ import Servant.Server.Auth.Token.Model
 import Servant.Server.Auth.Token.Monad
 import Servant.Server.Auth.Token.Pagination
 import Servant.Server.Auth.Token.Restore
+
+import qualified Data.ByteString.Lazy as BS 
 
 -- | This function converts our 'AuthHandler' monad into the @ExceptT ServantErr
 -- IO@ monad that Servant's 'enter' function needs in order to run the
@@ -162,6 +165,13 @@ authSignout token = do
   expire <- liftIO getCurrentTime
   runDB $ replace i mt { authTokenExpire = expire }
 
+-- | Checks given password and if it is invalid in terms of config
+-- password validator, throws 400 error.
+guardPassword :: Password -> AuthHandler ()
+guardPassword p = do 
+  AuthConfig{..} <- getConfig
+  whenJust (passwordValidator p) $ throw400 . BS.fromStrict . encodeUtf8
+
 -- | Implementation of "signup" method
 authSignup :: ReqRegister -- ^ Registration info
   -> MToken '["auth-register"] -- ^ Authorisation header with token 
@@ -169,6 +179,7 @@ authSignup :: ReqRegister -- ^ Registration info
 authSignup ReqRegister{..} token = do 
   guardAuthToken token
   guardUserInfo
+  guardPassword reqRegPassword
   strength <- getsConfig passwordsStrength
   i <- runDB $ do
     i <- createUser strength reqRegLogin reqRegPassword reqRegEmail reqRegPermissions
@@ -215,6 +226,7 @@ authUserPatch :: UserId -- ^ User id
   -> AuthHandler ()
 authUserPatch uid' body token = do 
   guardAuthToken token
+  whenJust (patchUserPassword body) guardPassword 
   let uid = toSqlKey . fromIntegral $ uid'
   user <- guardUser uid 
   strength <- getsConfig passwordsStrength
@@ -228,6 +240,7 @@ authUserPut :: UserId -- ^ User id
   -> AuthHandler ()
 authUserPut uid' ReqRegister{..} token = do 
   guardAuthToken token
+  guardPassword reqRegPassword
   let uid = toSqlKey . fromIntegral $ uid'
   let user = UserImpl {
         userImplLogin = reqRegLogin
@@ -266,8 +279,9 @@ authRestore uid' mcode mpass = do
       rc <- runDB $ getRestoreCode uid $ addUTCTime dt t 
       sendRestoreCode user rc 
     Just code -> do 
-      guardRestoreCode uid code 
       pass <- require "password" mpass
+      guardPassword pass
+      guardRestoreCode uid code
       user' <- setUserPassword pass user
       runDB $ replace uid user'
 
