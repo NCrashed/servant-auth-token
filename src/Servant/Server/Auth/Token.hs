@@ -279,7 +279,8 @@ authRestore uid' mcode mpass = do
       dt <- getsConfig restoreExpire
       t <- liftIO getCurrentTime
       rc <- runDB $ getRestoreCode uid $ addUTCTime dt t 
-      sendRestoreCode user rc 
+      uinfo <- runDB404 "user" $ readUserInfo uid'
+      sendRestoreCode uinfo rc 
     Just code -> do 
       pass <- require "password" mpass
       guardPassword pass

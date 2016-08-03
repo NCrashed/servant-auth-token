@@ -6,20 +6,12 @@ module Servant.Server.Auth.Token.Restore(
 
 import Control.Monad 
 import Control.Monad.IO.Class 
-import Data.Monoid
-import Data.Text (unpack)
 import Data.Time.Clock
-import Data.Time.Format
 import Data.UUID
 import Data.UUID.V4
 import Database.Persist.Postgresql
-import Network.Mail.SMTP
-import Text.Mustache as M
-
-import qualified Data.Text.Lazy as T 
 
 import Servant.API.Auth.Token
-import Servant.Server.Auth.Token.Common
 import Servant.Server.Auth.Token.Config
 import Servant.Server.Auth.Token.Model 
 import Servant.Server.Auth.Token.Monad 
@@ -51,28 +43,7 @@ guardRestoreCode uid code = do
     Just (Entity i rc) -> runDB $ replace i rc { userRestoreExpire = t }
 
 -- | Send restore code to the user' email
-sendRestoreCode :: UserImpl -> RestoreCode -> AuthHandler ()
-sendRestoreCode UserImpl{..} code = do 
+sendRestoreCode :: RespUserInfo -> RestoreCode -> AuthHandler ()
+sendRestoreCode user code = do 
   AuthConfig{..} <- getConfig
-  t <- liftIO getCurrentTime
-  res <- liftIO $ automaticCompile [unpack templatesFolder] (unpack restoreEmailTemplate)
-  case res of
-    Left er -> throw500 $ "Email template: " <> showb er
-    Right tmp -> do
-      let body = substituteValue tmp $ M.object [
-              "code" ~> code
-            , "login" ~> userImplLogin
-            , "time" ~> formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S" t 
-            ]
-      let email = simpleMail
-            (Address Nothing restoreEmailSourceAddress)
-            [Address Nothing userImplEmail]
-            [] -- cc
-            [] -- bcc
-            restoreEmailTitle
-            [plainTextPart $ T.fromStrict body]
-
-      liftIO $ case smptAuth of 
-        Nothing -> sendMail' (unpack smptHost) (fromIntegral smptPort) email 
-        Just (smptUser, smptPass) -> sendMailWithLogin' (unpack smptHost) (fromIntegral smptPort) 
-          (unpack smptUser) (unpack smptPass) email 
+  liftIO $ restoreCodeSender user code 
