@@ -1,5 +1,14 @@
 {-# LANGUAGE QuasiQuotes                #-}
 {-# LANGUAGE TemplateHaskell            #-}
+{-|
+Module      : Servant.Server.Auth.Token.Model
+Description : Internal operations with RDBMS
+Copyright   : (c) Anton Gushcha, 2016
+License     : MIT
+Maintainer  : ncrashed@gmail.com
+Stability   : experimental
+Portability : Portable
+-}
 module Servant.Server.Auth.Token.Model(
   -- * DB entities
     UserImpl(..)

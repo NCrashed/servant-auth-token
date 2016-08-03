@@ -1,4 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-|
+Module      : Servant.Server.Auth.Token.Error
+Description : Utilities to wrap errors
+Copyright   : (c) Anton Gushcha, 2016
+License     : MIT
+Maintainer  : ncrashed@gmail.com
+Stability   : experimental
+Portability : Portable
+-}
 module Servant.Server.Auth.Token.Error(
     throw400
   , throw401

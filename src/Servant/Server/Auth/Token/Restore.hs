@@ -1,3 +1,12 @@
+{-|
+Module      : Servant.Server.Auth.Token.Restore
+Description : Operations with restore codes
+Copyright   : (c) Anton Gushcha, 2016
+License     : MIT
+Maintainer  : ncrashed@gmail.com
+Stability   : experimental
+Portability : Portable
+-}
 module Servant.Server.Auth.Token.Restore(
     getRestoreCode
   , guardRestoreCode
