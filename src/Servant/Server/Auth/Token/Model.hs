@@ -131,9 +131,11 @@ runDB query = do
   pool <- asks getPool
   liftIO $ runSqlPool query pool
 
+-- | Convert password to bytestring
 passToByteString :: Password -> BS.ByteString
 passToByteString = TE.encodeUtf8
 
+-- | Convert bytestring into password
 byteStringToPass :: BS.ByteString -> Password
 byteStringToPass = TE.decodeUtf8
 
@@ -208,7 +210,9 @@ ensureAdmin strength login pass email = do
   madmin <- selectFirst [UserPermPermission ==. adminPerm] []
   whenNothing madmin $ void $ createAdmin strength login pass email 
 
-patchUser :: Int -> PatchUser -> Entity UserImpl -> SqlPersistT IO (Entity UserImpl)
+-- | Apply patches for user
+patchUser :: Int -- ^ Password strength
+  -> PatchUser -> Entity UserImpl -> SqlPersistT IO (Entity UserImpl)
 patchUser strength PatchUser{..} =  
         withPatch patchUserLogin (\l (Entity i u) -> pure $ Entity i u { userImplLogin = l })
     >=> withPatch patchUserPassword patchPassword
@@ -224,7 +228,9 @@ patchUser strength PatchUser{..} =
         setUserGroups i gs
         return $ Entity i u
 
-setUserPassword' :: MonadIO m => Int -> Password -> UserImpl -> m UserImpl
+-- | Update password of user 
+setUserPassword' :: MonadIO m => Int -- ^ Password strength
+  -> Password -> UserImpl -> m UserImpl
 setUserPassword' strength pass user = do
   pass' <- liftIO $ makePassword (passToByteString pass) strength
   return $ user { userImplPassword = byteStringToPass pass' }

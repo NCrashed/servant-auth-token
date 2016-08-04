@@ -12,8 +12,11 @@ module Servant.Server.Auth.Token.Config(
   , defaultAuthConfig
   ) where 
 
+import Control.Monad.IO.Class 
 import Data.Text (Text)
 import Data.Time 
+import Data.UUID
+import Data.UUID.V4
 import Database.Persist.Sql 
 import Servant.Server 
 
@@ -29,13 +32,20 @@ data AuthConfig = AuthConfig {
   -- | For password restore, defines amounts of seconds
   -- when restore code becomes invalid.
   , restoreExpire :: !NominalDiffTime
+  -- | User specified implementation of restore code sending. It could
+  -- be a email sender or SMS message or mobile application method, whatever
+  -- the implementation needs.
+  , restoreCodeSender :: !(RespUserInfo -> RestoreCode -> IO ())
+  -- | User specified generator for restore codes. By default the server
+  -- generates UUID that can be unacceptable for SMS restoration routine.
+  , restoreCodeGenerator :: !(IO RestoreCode)
   -- | Upper bound of expiration time that user can request
   -- for a token.
   , maximumExpire :: !(Maybe NominalDiffTime)
   -- | For authorisation, defines amount of hashing
   -- of new user passwords (should be greater or equal 14).
   -- The passwords hashed 2^strength times. It is needed to 
-  -- prevent almost all kinds of bruteforce attacks, rainbow
+  -- prevent almost all kinds of brute force attacks, rainbow
   -- tables and dictionary attacks.
   , passwordsStrength :: !Int
   -- | Validates user password at registration / password change.
@@ -49,21 +59,23 @@ data AuthConfig = AuthConfig {
   , servantErrorFormer :: !(ServantErr -> ServantErr)
   -- | Default size of page for pagination
   , defaultPageSize :: !Word 
-  -- | User specified implementation of restore code sending. It could
-  -- be a email sender or sms message or mobile application method, whatever
-  -- the implementation needs.
-  , restoreCodeSender :: !(RespUserInfo -> RestoreCode -> IO ())
   }
 
+-- | Default configuration for authorisation server
 defaultAuthConfig :: ConnectionPool -> AuthConfig 
 defaultAuthConfig pool = AuthConfig {
     getPool = pool
   , defaultExpire = fromIntegral (600 :: Int)
   , restoreExpire = fromIntegral (3*24*3600 :: Int) -- 3 days
+  , restoreCodeSender = const $ const $ return ()
+  , restoreCodeGenerator = uuidCodeGenerate
   , maximumExpire = Nothing
   , passwordsStrength = 17
   , passwordValidator = const Nothing
   , servantErrorFormer = id
   , defaultPageSize = 50
-  , restoreCodeSender = const $ const $ return ()
   }
+
+-- | Default generator of restore codes
+uuidCodeGenerate :: IO RestoreCode
+uuidCodeGenerate = toText <$> liftIO nextRandom

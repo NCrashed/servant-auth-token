@@ -1,5 +1,5 @@
 name:                servant-auth-token
-version:             0.1.0.0
+version:             0.1.1.0
 synopsis:            Servant based API and server for token based authorisation
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme

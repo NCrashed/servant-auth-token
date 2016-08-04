@@ -29,6 +29,7 @@ makeBody e = do
   f <- asks servantErrorFormer
   return $ f e
 
+-- | Wrappers to throw corresponding servant errors
 throw400, throw401, throw404, throw409, throw500 
   :: (MonadError ServantErr m, MonadReader AuthConfig m) 
   => BS.ByteString -> m a

@@ -337,7 +337,8 @@ authRestore uid' mcode mpass = do
     Nothing -> do 
       dt <- getsConfig restoreExpire
       t <- liftIO getCurrentTime
-      rc <- runDB $ getRestoreCode uid $ addUTCTime dt t 
+      AuthConfig{..} <- getConfig
+      rc <- runDB $ getRestoreCode restoreCodeGenerator uid $ addUTCTime dt t 
       uinfo <- runDB404 "user" $ readUserInfo uid'
       sendRestoreCode uinfo rc 
     Just code -> do 

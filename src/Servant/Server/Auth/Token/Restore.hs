@@ -16,8 +16,6 @@ module Servant.Server.Auth.Token.Restore(
 import Control.Monad 
 import Control.Monad.IO.Class 
 import Data.Time.Clock
-import Data.UUID
-import Data.UUID.V4
 import Database.Persist.Postgresql
 
 import Servant.API.Auth.Token
@@ -26,13 +24,13 @@ import Servant.Server.Auth.Token.Model
 import Servant.Server.Auth.Token.Monad 
 
 -- | Get current restore code for user or generate new
-getRestoreCode :: UserImplId -> UTCTime -> SqlPersistT IO RestoreCode
-getRestoreCode uid expire = do 
+getRestoreCode :: IO RestoreCode -> UserImplId -> UTCTime -> SqlPersistT IO RestoreCode
+getRestoreCode generator uid expire = do 
   t <- liftIO getCurrentTime
   mcode <- selectFirst [UserRestoreUser ==. uid, UserRestoreExpire >. t] [Desc UserRestoreExpire]
   case mcode of 
     Nothing -> do 
-      code <- toText <$> liftIO nextRandom
+      code <- liftIO generator
       void $ insert UserRestore {
           userRestoreValue = code 
         , userRestoreUser = uid
