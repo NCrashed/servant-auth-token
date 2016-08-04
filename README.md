@@ -1,5 +1,7 @@
 # servant-auth-token
 
+[![Build Status](https://travis-ci.org/NCrashed/servant-auth-token.svg?branch=master)](https://travis-ci.org/NCrashed/servant-auth-token)
+
 The repo contains server implementation of [servant-auth-toke-api](https://github.com/NCrashed/servant-auth-token-api).
 
 # How to add to your server
