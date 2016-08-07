@@ -1,3 +1,8 @@
+0.1.2.0
+=======
+
+* Expose implementation of API for embedding in complex servers.
+
 0.1.1.0
 =======
 
