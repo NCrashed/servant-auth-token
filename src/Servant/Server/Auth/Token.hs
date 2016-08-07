@@ -68,6 +68,24 @@ module Servant.Server.Auth.Token(
   , guardAuthToken 
   , ensureAdmin
   , authUserByToken
+  -- * API methods
+  , authSignin
+  , authTouch
+  , authToken
+  , authSignout
+  , authSignup
+  , authUsersInfo
+  , authUserInfo
+  , authUserPatch
+  , authUserPut
+  , authUserDelete
+  , authRestore
+  , authGroupGet
+  , authGroupPost
+  , authGroupPut
+  , authGroupPatch
+  , authGroupDelete
+  , authGroupList
   ) where 
 
 import Control.Monad 
@@ -142,11 +160,12 @@ authServer cfg = enter (convertAuthHandler cfg) (
   :<|> authGroupList)
 
 -- | Implementation of "signin" method
-authSignin :: Maybe Login -- ^ Login query parameter
+authSignin :: AuthMonad m
+  => Maybe Login -- ^ Login query parameter
   -> Maybe Password -- ^ Password query parameter
   -> Maybe Seconds -- ^ Expire query parameter, how many seconds the token is valid
-  -> AuthHandler (OnlyField "token" SimpleToken) -- ^ If everthing is OK, return token
-authSignin mlogin mpass mexpire = do
+  -> m (OnlyField "token" SimpleToken) -- ^ If everthing is OK, return token
+authSignin mlogin mpass mexpire = runAuth $ do
   login <- require "login" mlogin 
   pass <- require "pass" mpass 
   Entity uid UserImpl{..} <- guardLogin login pass
@@ -196,19 +215,21 @@ touchToken (Entity tid tok) expire = do
   return $ authTokenValue tok
 
 -- | Implementation of "touch" method
-authTouch :: Maybe Seconds -- ^ Expire query parameter, how many seconds the token should be valid by now. 'Nothing' means default value defined in server config.
+authTouch :: AuthMonad m
+  => Maybe Seconds -- ^ Expire query parameter, how many seconds the token should be valid by now. 'Nothing' means default value defined in server config.
   -> MToken '[] -- ^ Authorisation header with token 
-  -> AuthHandler ()
-authTouch mexpire token = do 
+  -> m ()
+authTouch mexpire token = runAuth $ do 
   Entity i mt <- guardAuthToken' (fmap unToken token) []
   expire <- calcExpire mexpire
   runDB $ replace i mt { authTokenExpire = expire }
 
 -- | Implementation of "token" method, return 
 -- info about user binded to the token
-authToken :: MToken '[] -- ^ Authorisation header with token 
-  -> AuthHandler RespUserInfo 
-authToken token = do 
+authToken :: AuthMonad m
+  => MToken '[] -- ^ Authorisation header with token 
+  -> m RespUserInfo 
+authToken token = runAuth $ do 
   i <- authUserByToken token
   runDB404 "user" . readUserInfo . fromKey $ i
 
@@ -219,9 +240,10 @@ authUserByToken token = runAuth $ do
   return $ authTokenUser mt 
 
 -- | Implementation of "signout" method
-authSignout :: Maybe (Token '[]) -- ^ Authorisation header with token 
-  -> AuthHandler ()
-authSignout token = do 
+authSignout :: AuthMonad m
+  => Maybe (Token '[]) -- ^ Authorisation header with token 
+  -> m ()
+authSignout token = runAuth $ do 
   Entity i mt <- guardAuthToken' (fmap unToken token) []
   expire <- liftIO getCurrentTime
   runDB $ replace i mt { authTokenExpire = expire }
@@ -234,10 +256,11 @@ guardPassword p = do
   whenJust (passwordValidator p) $ throw400 . BS.fromStrict . encodeUtf8
 
 -- | Implementation of "signup" method
-authSignup :: ReqRegister -- ^ Registration info
+authSignup :: AuthMonad m
+  => ReqRegister -- ^ Registration info
   -> MToken '["auth-register"] -- ^ Authorisation header with token 
-  -> AuthHandler (OnlyField "user" UserId)
-authSignup ReqRegister{..} token = do 
+  -> m (OnlyField "user" UserId)
+authSignup ReqRegister{..} token = runAuth $ do 
   guardAuthToken token
   guardUserInfo
   guardPassword reqRegPassword
@@ -253,11 +276,12 @@ authSignup ReqRegister{..} token = do
       when (c > 0) $ throw400 "User with specified id is already registered"
 
 -- | Implementation of get "users" method
-authUsersInfo :: Maybe Page -- ^ Page num parameter
+authUsersInfo :: AuthMonad m
+  => Maybe Page -- ^ Page num parameter
   -> Maybe PageSize -- ^ Page size parameter
   -> MToken '["auth-info"] -- ^ Authorisation header with token
-  -> AuthHandler RespUsersInfo
-authUsersInfo mp msize token = do 
+  -> m RespUsersInfo
+authUsersInfo mp msize token = runAuth $ do 
   guardAuthToken token
   pagination mp msize $ \page size -> do 
     (users, total) <- runDB $ (,)
@@ -273,19 +297,21 @@ authUsersInfo mp msize token = do
       }
 
 -- | Implementation of get "user" method
-authUserInfo :: UserId -- ^ User id 
+authUserInfo :: AuthMonad m
+  => UserId -- ^ User id 
   -> MToken '["auth-info"] -- ^ Authorisation header with token
-  -> AuthHandler RespUserInfo
-authUserInfo uid' token = do 
+  -> m RespUserInfo
+authUserInfo uid' token = runAuth $ do 
   guardAuthToken token
   runDB404 "user" $ readUserInfo uid'
 
 -- | Implementation of patch "user" method
-authUserPatch :: UserId -- ^ User id 
+authUserPatch :: AuthMonad m
+  => UserId -- ^ User id 
   -> PatchUser -- ^ JSON with fields for patching
   -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> AuthHandler ()
-authUserPatch uid' body token = do 
+  -> m ()
+authUserPatch uid' body token = runAuth $ do 
   guardAuthToken token
   whenJust (patchUserPassword body) guardPassword 
   let uid = toSqlKey . fromIntegral $ uid'
@@ -295,11 +321,12 @@ authUserPatch uid' body token = do
   runDB $ replace uid user'
 
 -- | Implementation of put "user" method
-authUserPut :: UserId -- ^ User id 
+authUserPut :: AuthMonad m
+  => UserId -- ^ User id 
   -> ReqRegister -- ^ New user
   -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> AuthHandler ()
-authUserPut uid' ReqRegister{..} token = do 
+  -> m ()
+authUserPut uid' ReqRegister{..} token = runAuth $ do 
   guardAuthToken token
   guardPassword reqRegPassword
   let uid = toSqlKey . fromIntegral $ uid'
@@ -315,10 +342,11 @@ authUserPut uid' ReqRegister{..} token = do
     whenJust reqRegGroups $ setUserGroups uid
 
 -- | Implementation of patch "user" method
-authUserDelete :: UserId -- ^ User id 
+authUserDelete :: AuthMonad m
+  => UserId -- ^ User id 
   -> MToken '["auth-delete"] -- ^ Authorisation header with token
-  -> AuthHandler ()
-authUserDelete uid' token = do 
+  -> m ()
+authUserDelete uid' token = runAuth $ do 
   guardAuthToken token
   runDB $ deleteCascade (toKey uid' :: UserImplId)
 
@@ -326,11 +354,12 @@ authUserDelete uid' token = do
 -- is called without 'code' parameter. The system sends email with a restore code
 -- to email. After that a call of the method with the code is needed to 
 -- change password. Need configured SMTP server.
-authRestore :: UserId -- ^ User id 
+authRestore :: AuthMonad m
+  => UserId -- ^ User id 
   -> Maybe RestoreCode
   -> Maybe Password
-  -> AuthHandler ()
-authRestore uid' mcode mpass = do 
+  -> m ()
+authRestore uid' mcode mpass = runAuth $ do 
   let uid = toKey uid'
   user <- guardUser uid 
   case mcode of 
@@ -388,53 +417,59 @@ setUserPassword pass user = do
   setUserPassword' strength pass user 
 
 -- | Getting info about user group, requires 'authInfoPerm' for token
-authGroupGet :: UserGroupId
+authGroupGet :: AuthMonad m
+  => UserGroupId
   -> MToken '["auth-info"] -- ^ Authorisation header with token
-  -> AuthHandler UserGroup
-authGroupGet i token = do 
+  -> m UserGroup
+authGroupGet i token = runAuth $ do 
   guardAuthToken token
   runDB404 "user group" $ readUserGroup i 
 
 -- | Inserting new user group, requires 'authUpdatePerm' for token
-authGroupPost :: UserGroup
+authGroupPost :: AuthMonad m
+  => UserGroup
   -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> AuthHandler (OnlyId UserGroupId)
-authGroupPost ug token = do 
+  -> m (OnlyId UserGroupId)
+authGroupPost ug token = runAuth $ do 
   guardAuthToken token
   runDB $ OnlyField <$> insertUserGroup ug
 
 -- | Replace info about given user group, requires 'authUpdatePerm' for token
-authGroupPut :: UserGroupId
+authGroupPut :: AuthMonad m
+  => UserGroupId
   -> UserGroup
   -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> AuthHandler ()
-authGroupPut i ug token = do 
+  -> m ()
+authGroupPut i ug token = runAuth $ do 
   guardAuthToken token
   runDB $ updateUserGroup i ug 
 
 -- | Patch info about given user group, requires 'authUpdatePerm' for token
-authGroupPatch :: UserGroupId
+authGroupPatch :: AuthMonad m
+  => UserGroupId
   -> PatchUserGroup
   -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> AuthHandler ()
-authGroupPatch i up token = do 
+  -> m ()
+authGroupPatch i up token = runAuth $ do 
   guardAuthToken token
   runDB $ patchUserGroup i up 
 
 -- | Delete all info about given user group, requires 'authDeletePerm' for token
-authGroupDelete :: UserGroupId
+authGroupDelete :: AuthMonad m
+  => UserGroupId
   -> MToken '["auth-delete"] -- ^ Authorisation header with token
-  -> AuthHandler ()
-authGroupDelete i token = do 
+  -> m ()
+authGroupDelete i token = runAuth $ do 
   guardAuthToken token
   runDB $ deleteUserGroup i 
 
 -- | Get list of user groups, requires 'authInfoPerm' for token 
-authGroupList :: Maybe Page
+authGroupList :: AuthMonad m
+  => Maybe Page
   -> Maybe PageSize
   -> MToken '["auth-info"] -- ^ Authorisation header with token
-  -> AuthHandler (PagedList UserGroupId UserGroup)
-authGroupList mp msize token = do 
+  -> m (PagedList UserGroupId UserGroup)
+authGroupList mp msize token = runAuth $ do 
   guardAuthToken token
   pagination mp msize $ \page size -> do 
     (groups, total) <- runDB $ (,)
