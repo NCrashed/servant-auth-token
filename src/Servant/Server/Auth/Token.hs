@@ -50,7 +50,7 @@ Now you can use 'guardAuthToken' to check authorisation headers in endpoints of 
 @
 -- | Read a single customer from DB
 customerGet :: CustomerId -- ^ Customer unique id
-  -> MToken '["customer-read"] -- ^ Required permissions for auth token
+  -> MToken' '["customer-read"] -- ^ Required permissions for auth token
   -> App Customer -- ^ Customer data
 customerGet i token = do
   guardAuthToken token 
@@ -92,6 +92,7 @@ import Control.Monad
 import Control.Monad.Except 
 import Control.Monad.Reader
 import Crypto.PasswordStore
+import Data.Aeson.Unit
 import Data.Aeson.WithField
 import Data.Maybe
 import Data.Monoid
@@ -218,11 +219,12 @@ touchToken (Entity tid tok) expire = do
 authTouch :: AuthMonad m
   => Maybe Seconds -- ^ Expire query parameter, how many seconds the token should be valid by now. 'Nothing' means default value defined in server config.
   -> MToken '[] -- ^ Authorisation header with token 
-  -> m ()
+  -> m Unit
 authTouch mexpire token = runAuth $ do 
   Entity i mt <- guardAuthToken' (fmap unToken token) []
   expire <- calcExpire mexpire
   runDB $ replace i mt { authTokenExpire = expire }
+  return Unit 
 
 -- | Implementation of "token" method, return 
 -- info about user binded to the token
@@ -242,12 +244,13 @@ authUserByToken token = runAuth $ do
 -- | Implementation of "signout" method
 authSignout :: AuthMonad m
   => Maybe (Token '[]) -- ^ Authorisation header with token 
-  -> m ()
+  -> m Unit
 authSignout token = runAuth $ do 
   Entity i mt <- guardAuthToken' (fmap unToken token) []
   expire <- liftIO getCurrentTime
   runDB $ replace i mt { authTokenExpire = expire }
-
+  return Unit 
+  
 -- | Checks given password and if it is invalid in terms of config
 -- password validator, throws 400 error.
 guardPassword :: Password -> AuthHandler ()
@@ -258,7 +261,7 @@ guardPassword p = do
 -- | Implementation of "signup" method
 authSignup :: AuthMonad m
   => ReqRegister -- ^ Registration info
-  -> MToken '["auth-register"] -- ^ Authorisation header with token 
+  -> MToken' '["auth-register"] -- ^ Authorisation header with token 
   -> m (OnlyField "user" UserId)
 authSignup ReqRegister{..} token = runAuth $ do 
   guardAuthToken token
@@ -279,7 +282,7 @@ authSignup ReqRegister{..} token = runAuth $ do
 authUsersInfo :: AuthMonad m
   => Maybe Page -- ^ Page num parameter
   -> Maybe PageSize -- ^ Page size parameter
-  -> MToken '["auth-info"] -- ^ Authorisation header with token
+  -> MToken' '["auth-info"] -- ^ Authorisation header with token
   -> m RespUsersInfo
 authUsersInfo mp msize token = runAuth $ do 
   guardAuthToken token
@@ -299,7 +302,7 @@ authUsersInfo mp msize token = runAuth $ do
 -- | Implementation of get "user" method
 authUserInfo :: AuthMonad m
   => UserId -- ^ User id 
-  -> MToken '["auth-info"] -- ^ Authorisation header with token
+  -> MToken' '["auth-info"] -- ^ Authorisation header with token
   -> m RespUserInfo
 authUserInfo uid' token = runAuth $ do 
   guardAuthToken token
@@ -309,8 +312,8 @@ authUserInfo uid' token = runAuth $ do
 authUserPatch :: AuthMonad m
   => UserId -- ^ User id 
   -> PatchUser -- ^ JSON with fields for patching
-  -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> m ()
+  -> MToken' '["auth-update"] -- ^ Authorisation header with token
+  -> m Unit
 authUserPatch uid' body token = runAuth $ do 
   guardAuthToken token
   whenJust (patchUserPassword body) guardPassword 
@@ -319,13 +322,14 @@ authUserPatch uid' body token = runAuth $ do
   strength <- getsConfig passwordsStrength
   Entity _ user' <- runDB $ patchUser strength body $ Entity uid user 
   runDB $ replace uid user'
+  return Unit
 
 -- | Implementation of put "user" method
 authUserPut :: AuthMonad m
   => UserId -- ^ User id 
   -> ReqRegister -- ^ New user
-  -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> m ()
+  -> MToken' '["auth-update"] -- ^ Authorisation header with token
+  -> m Unit
 authUserPut uid' ReqRegister{..} token = runAuth $ do 
   guardAuthToken token
   guardPassword reqRegPassword
@@ -340,15 +344,17 @@ authUserPut uid' ReqRegister{..} token = runAuth $ do
     replace uid user'
     setUserPermissions uid reqRegPermissions
     whenJust reqRegGroups $ setUserGroups uid
+  return Unit 
 
 -- | Implementation of patch "user" method
 authUserDelete :: AuthMonad m
   => UserId -- ^ User id 
-  -> MToken '["auth-delete"] -- ^ Authorisation header with token
-  -> m ()
+  -> MToken' '["auth-delete"] -- ^ Authorisation header with token
+  -> m Unit
 authUserDelete uid' token = runAuth $ do 
   guardAuthToken token
   runDB $ deleteCascade (toKey uid' :: UserImplId)
+  return Unit 
 
 -- Generate new password for user. There is two phases, first, the method
 -- is called without 'code' parameter. The system sends email with a restore code
@@ -358,7 +364,7 @@ authRestore :: AuthMonad m
   => UserId -- ^ User id 
   -> Maybe RestoreCode
   -> Maybe Password
-  -> m ()
+  -> m Unit
 authRestore uid' mcode mpass = runAuth $ do 
   let uid = toKey uid'
   user <- guardUser uid 
@@ -376,6 +382,7 @@ authRestore uid' mcode mpass = runAuth $ do
       guardRestoreCode uid code
       user' <- setUserPassword pass user
       runDB $ replace uid user'
+  return Unit 
 
 -- | Getting user by id, throw 404 response if not found
 guardUser :: UserImplId -> AuthHandler UserImpl
@@ -419,7 +426,7 @@ setUserPassword pass user = do
 -- | Getting info about user group, requires 'authInfoPerm' for token
 authGroupGet :: AuthMonad m
   => UserGroupId
-  -> MToken '["auth-info"] -- ^ Authorisation header with token
+  -> MToken' '["auth-info"] -- ^ Authorisation header with token
   -> m UserGroup
 authGroupGet i token = runAuth $ do 
   guardAuthToken token
@@ -428,7 +435,7 @@ authGroupGet i token = runAuth $ do
 -- | Inserting new user group, requires 'authUpdatePerm' for token
 authGroupPost :: AuthMonad m
   => UserGroup
-  -> MToken '["auth-update"] -- ^ Authorisation header with token
+  -> MToken' '["auth-update"] -- ^ Authorisation header with token
   -> m (OnlyId UserGroupId)
 authGroupPost ug token = runAuth $ do 
   guardAuthToken token
@@ -438,36 +445,39 @@ authGroupPost ug token = runAuth $ do
 authGroupPut :: AuthMonad m
   => UserGroupId
   -> UserGroup
-  -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> m ()
+  -> MToken' '["auth-update"] -- ^ Authorisation header with token
+  -> m Unit
 authGroupPut i ug token = runAuth $ do 
   guardAuthToken token
   runDB $ updateUserGroup i ug 
+  return Unit
 
 -- | Patch info about given user group, requires 'authUpdatePerm' for token
 authGroupPatch :: AuthMonad m
   => UserGroupId
   -> PatchUserGroup
-  -> MToken '["auth-update"] -- ^ Authorisation header with token
-  -> m ()
+  -> MToken' '["auth-update"] -- ^ Authorisation header with token
+  -> m Unit
 authGroupPatch i up token = runAuth $ do 
   guardAuthToken token
   runDB $ patchUserGroup i up 
+  return Unit 
 
 -- | Delete all info about given user group, requires 'authDeletePerm' for token
 authGroupDelete :: AuthMonad m
   => UserGroupId
-  -> MToken '["auth-delete"] -- ^ Authorisation header with token
-  -> m ()
+  -> MToken' '["auth-delete"] -- ^ Authorisation header with token
+  -> m Unit
 authGroupDelete i token = runAuth $ do 
   guardAuthToken token
   runDB $ deleteUserGroup i 
+  return Unit 
 
 -- | Get list of user groups, requires 'authInfoPerm' for token 
 authGroupList :: AuthMonad m
   => Maybe Page
   -> Maybe PageSize
-  -> MToken '["auth-info"] -- ^ Authorisation header with token
+  -> MToken' '["auth-info"] -- ^ Authorisation header with token
   -> m (PagedList UserGroupId UserGroup)
 authGroupList mp msize token = runAuth $ do 
   guardAuthToken token
