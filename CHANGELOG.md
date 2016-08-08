@@ -1,3 +1,8 @@
+0.2.0.0
+=======
+
+* Implement `servant-auth-token-0.2.0.0` API.
+
 0.1.2.0
 =======
 
