@@ -19,6 +19,7 @@ module Servant.Server.Auth.Token.Model(
   , AuthUserGroupUsers(..)
   , AuthUserGroupPerms(..)
   , EntityField(..)
+  , UserSingleUseCode(..)
   -- * IDs of entities
   , UserImplId
   , UserPermId
@@ -27,6 +28,7 @@ module Servant.Server.Auth.Token.Model(
   , AuthUserGroupId
   , AuthUserGroupUsersId
   , AuthUserGroupPermsId
+  , UserSingleUseCodeId
   -- * Operations
   , runDB
   , migrateAll
@@ -35,6 +37,7 @@ module Servant.Server.Auth.Token.Model(
   -- ** User
   , userToUserInfo
   , readUserInfo
+  , readUserInfoByLogin
   , getUserPermissions
   , setUserPermissions
   , createUser
@@ -109,6 +112,13 @@ UserRestore
   expire      UTCTime 
   deriving Generic Show 
 
+UserSingleUseCode
+  value     SingleUseCode 
+  user      UserImplId 
+  expire    UTCTime
+  used      Bool
+  deriving Generic Show
+
 AuthUserGroup
   name        Text 
   parent      AuthUserGroupId Maybe
@@ -149,18 +159,26 @@ userToUserInfo (Entity uid UserImpl{..}) perms groups = RespUserInfo {
     , respUserGroups = groups
   }
 
+-- | Low level operation for collecting info about user
+makeUserInfo :: Entity UserImpl -> SqlPersistT IO RespUserInfo
+makeUserInfo euser = do 
+  let uid = entityKey euser
+  perms <- getUserPermissions uid 
+  groups <- getUserGroups uid 
+  return $ userToUserInfo euser perms groups
+
 -- | Get user by id
 readUserInfo :: UserId -> SqlPersistT IO (Maybe RespUserInfo)
 readUserInfo uid' = do 
   let uid = toKey uid'
   muser <- get uid 
-  case muser of 
-    Nothing -> return Nothing 
-    Just user -> do 
-      perms <- getUserPermissions uid 
-      groups <- getUserGroups uid 
-      return . Just $ 
-        userToUserInfo (Entity uid user) perms groups
+  maybe (return Nothing) (fmap Just . makeUserInfo . Entity uid) $ muser
+
+-- | Get user by login
+readUserInfoByLogin :: Login -> SqlPersistT IO (Maybe RespUserInfo)
+readUserInfoByLogin login = do 
+  muser <- getBy $ UniqueLogin login 
+  maybe (return Nothing) (fmap Just . makeUserInfo) muser
 
 -- | Return list of permissions for the given user (only permissions that are assigned to him directly)
 getUserPermissions :: UserImplId -> SqlPersistT IO [Permission]

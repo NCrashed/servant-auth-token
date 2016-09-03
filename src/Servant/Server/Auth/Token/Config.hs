@@ -59,6 +59,20 @@ data AuthConfig = AuthConfig {
   , servantErrorFormer :: !(ServantErr -> ServantErr)
   -- | Default size of page for pagination
   , defaultPageSize :: !Word 
+  -- | User specified method of sending single usage code for authorisation.
+  -- 
+  -- See also: endpoints 'AuthSigninGetCodeMethod' and 'AuthSigninPostCodeMethod'.
+  --
+  -- By default does nothing.
+  , singleUseCodeSender :: !(RespUserInfo -> SingleUseCode -> IO ())
+  -- | Time the generated single usage code expires after.
+  --
+  -- By default 1 hour.
+  , singleUseCodeExpire :: !NominalDiffTime
+  -- | User specified generator for single use codes. 
+  --
+  -- By default the server generates UUID that can be unacceptable for SMS way of sending.
+  , singleUseCodeGenerator :: !(IO SingleUseCode)
   }
 
 -- | Default configuration for authorisation server
@@ -74,8 +88,15 @@ defaultAuthConfig pool = AuthConfig {
   , passwordValidator = const Nothing
   , servantErrorFormer = id
   , defaultPageSize = 50
+  , singleUseCodeSender = const $ const $ return ()
+  , singleUseCodeExpire = fromIntegral (60 * 60 :: Int) -- 1 hour
+  , singleUseCodeGenerator = uuidSingleUseCodeGenerate
   }
 
 -- | Default generator of restore codes
 uuidCodeGenerate :: IO RestoreCode
 uuidCodeGenerate = toText <$> liftIO nextRandom
+
+-- | Default generator of restore codes
+uuidSingleUseCodeGenerate :: IO RestoreCode
+uuidSingleUseCodeGenerate = toText <$> liftIO nextRandom

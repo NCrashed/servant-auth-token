@@ -70,6 +70,8 @@ module Servant.Server.Auth.Token(
   , authUserByToken
   -- * API methods
   , authSignin
+  , authSigninGetCode
+  , authSigninPostCode
   , authTouch
   , authToken
   , authSignout
@@ -86,6 +88,8 @@ module Servant.Server.Auth.Token(
   , authGroupPatch
   , authGroupDelete
   , authGroupList
+  -- * Low-level API
+  , getAuthToken
   ) where 
 
 import Control.Monad 
@@ -111,6 +115,7 @@ import Servant.Server.Auth.Token.Model
 import Servant.Server.Auth.Token.Monad
 import Servant.Server.Auth.Token.Pagination
 import Servant.Server.Auth.Token.Restore
+import Servant.Server.Auth.Token.SingleUse
 
 import qualified Data.ByteString.Lazy as BS 
 
@@ -123,7 +128,7 @@ convertAuthHandler :: AuthConfig -> AuthHandler :~> ExceptT ServantErr IO
 convertAuthHandler cfg = Nat (flip runReaderT cfg . runAuthHandler)
 
 -- | The interface your application should implement to be able to use
--- token aurhorisation API.
+-- token authorisation API.
 class Monad m => AuthMonad m where 
   getAuthConfig :: m AuthConfig 
   liftAuthAction :: ExceptT ServantErr IO a -> m a 
@@ -143,6 +148,8 @@ runAuth m = do
 authServer :: AuthConfig -> Server AuthAPI
 authServer cfg = enter (convertAuthHandler cfg) (
        authSignin
+  :<|> authSigninGetCode
+  :<|> authSigninPostCode
   :<|> authTouch
   :<|> authToken 
   :<|> authSignout
@@ -165,16 +172,12 @@ authSignin :: AuthMonad m
   => Maybe Login -- ^ Login query parameter
   -> Maybe Password -- ^ Password query parameter
   -> Maybe Seconds -- ^ Expire query parameter, how many seconds the token is valid
-  -> m (OnlyField "token" SimpleToken) -- ^ If everthing is OK, return token
+  -> m (OnlyField "token" SimpleToken) -- ^ If everything is OK, return token
 authSignin mlogin mpass mexpire = runAuth $ do
   login <- require "login" mlogin 
   pass <- require "pass" mpass 
   Entity uid UserImpl{..} <- guardLogin login pass
-  expire <- calcExpire mexpire
-  mt <- getExistingToken uid  -- check whether there is already existing token
-  OnlyField <$> case mt of 
-    Nothing -> createToken uid expire -- create new token
-    Just t -> touchToken t expire -- prolong token expiration time
+  OnlyField <$> getAuthToken uid mexpire
   where 
   guardLogin login pass = do -- check login and password, return passed user
     muser <- runDB $ selectFirst [UserImplLogin ==. login] []
@@ -185,11 +188,23 @@ authSignin mlogin mpass mexpire = runAuth $ do
         then return user
         else err
 
-  getExistingToken uid = do -- return active token for specified user id
+-- | Helper to get or generate new token for user
+getAuthToken :: AuthMonad m
+  => UserImplId -- ^ User for whom we want token
+  -> Maybe Seconds -- ^ Expiration duration, 'Nothing' means default
+  -> m SimpleToken -- ^ Old token (if it doesn't expire) or new one
+getAuthToken uid mexpire = runAuth $ do 
+  expire <- calcExpire mexpire
+  mt <- getExistingToken  -- check whether there is already existing token
+  case mt of 
+    Nothing -> createToken expire -- create new token
+    Just t -> touchToken t expire -- prolong token expiration time
+  where
+  getExistingToken = do -- return active token for specified user id
     t <- liftIO getCurrentTime 
     runDB $ selectFirst [AuthTokenUser ==. uid, AuthTokenExpire >. t] []
 
-  createToken uid expire = do -- generate and save fresh token 
+  createToken expire = do -- generate and save fresh token 
     token <- toText <$> liftIO nextRandom
     _ <- runDB $ insert AuthToken {
         authTokenValue = token 
@@ -197,6 +212,90 @@ authSignin mlogin mpass mexpire = runAuth $ do
       , authTokenExpire = expire 
       }
     return token 
+
+-- | Authorisation via code of single usage.
+--
+-- Implementation of 'AuthSigninGetCodeMethod' endpoint.
+--
+-- Logic of authorisation via this method is:
+-- 
+-- * Client sends GET request to 'AuthSigninGetCodeMethod' endpoint
+--
+-- * Server generates single use token and sends it via
+--   SMS or email, defined in configuration by 'singleUseCodeSender' field.
+--
+-- * Client sends POST request to 'AuthSigninPostCodeMethod' endpoint
+--
+-- * Server responds with auth token.
+--
+-- * Client uses the token with other requests as authorisation
+-- header
+--
+-- * Client can extend lifetime of token by periodically pinging
+-- of 'AuthTouchMethod' endpoint
+--
+-- * Client can invalidate token instantly by 'AuthSignoutMethod'
+--
+-- * Client can get info about user with 'AuthTokenInfoMethod' endpoint.
+--
+-- See also: 'authSigninPostCode'
+authSigninGetCode :: AuthMonad m 
+  => Maybe Login -- ^ User login, required
+  -> m Unit 
+authSigninGetCode mlogin = runAuth $ do 
+  login <- require "login" mlogin 
+  uinfo <- runDB404 "user" $ readUserInfoByLogin login
+  let uid = toKey $ respUserId uinfo 
+
+  AuthConfig{..} <- getConfig
+  code <- liftIO singleUseCodeGenerator 
+  expire <- makeSingleUseExpire singleUseCodeExpire
+  runDB $ registerSingleUseCode uid code expire
+  liftIO $ singleUseCodeSender uinfo code 
+
+  return Unit 
+
+-- | Authorisation via code of single usage.
+--
+-- Logic of authorisation via this method is:
+-- 
+-- * Client sends GET request to 'AuthSigninGetCodeMethod' endpoint
+--
+-- * Server generates single use token and sends it via
+--   SMS or email, defined in configuration by 'singleUseCodeSender' field.
+--
+-- * Client sends POST request to 'AuthSigninPostCodeMethod' endpoint
+--
+-- * Server responds with auth token.
+--
+-- * Client uses the token with other requests as authorisation
+-- header
+--
+-- * Client can extend lifetime of token by periodically pinging
+-- of 'AuthTouchMethod' endpoint
+--
+-- * Client can invalidate token instantly by 'AuthSignoutMethod'
+--
+-- * Client can get info about user with 'AuthTokenInfoMethod' endpoint.
+--
+-- See also: 'authSigninGetCode'
+authSigninPostCode :: AuthMonad m 
+  => Maybe Login -- ^ User login, required
+  -> Maybe SingleUseCode -- ^ Received single usage code, required
+  -> Maybe Seconds 
+  -- ^ Time interval after which the token expires, 'Nothing' means 
+  -- some default value
+  -> m (OnlyField "token" SimpleToken)
+authSigninPostCode mlogin mcode mexpire = runAuth $ do 
+  login <- require "login" mlogin 
+  code <- require "code" mcode
+
+  uinfo <- runDB404 "user" $ readUserInfoByLogin login
+  let uid = toKey $ respUserId uinfo 
+  isValid <- runDB $ validateSingleUseCode uid code 
+  unless isValid $ throw401 "Single usage code doesn't match"
+  
+  OnlyField <$> getAuthToken uid mexpire
 
 -- | Calculate expiration timestamp for token
 calcExpire :: Maybe Seconds -> AuthHandler UTCTime
