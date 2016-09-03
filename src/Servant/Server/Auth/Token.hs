@@ -82,6 +82,7 @@ module Servant.Server.Auth.Token(
   , authUserPut
   , authUserDelete
   , authRestore
+  , authGetSingleUseCodes
   , authGroupGet
   , authGroupPost
   , authGroupPut
@@ -160,6 +161,7 @@ authServer cfg = enter (convertAuthHandler cfg) (
   :<|> authUserPut
   :<|> authUserDelete
   :<|> authRestore
+  :<|> authGetSingleUseCodes
   :<|> authGroupGet 
   :<|> authGroupPost
   :<|> authGroupPut 
@@ -250,7 +252,7 @@ authSigninGetCode mlogin = runAuth $ do
   AuthConfig{..} <- getConfig
   code <- liftIO singleUseCodeGenerator 
   expire <- makeSingleUseExpire singleUseCodeExpire
-  runDB $ registerSingleUseCode uid code expire
+  runDB $ registerSingleUseCode uid code (Just expire)
   liftIO $ singleUseCodeSender uinfo code 
 
   return Unit 
@@ -294,7 +296,7 @@ authSigninPostCode mlogin mcode mexpire = runAuth $ do
   let uid = toKey $ respUserId uinfo 
   isValid <- runDB $ validateSingleUseCode uid code 
   unless isValid $ throw401 "Single usage code doesn't match"
-  
+
   OnlyField <$> getAuthToken uid mexpire
 
 -- | Calculate expiration timestamp for token
@@ -482,6 +484,21 @@ authRestore uid' mcode mpass = runAuth $ do
       user' <- setUserPassword pass user
       runDB $ replace uid user'
   return Unit 
+
+-- | Implementation of 'AuthGetSingleUseCodes' endpoint.
+authGetSingleUseCodes :: AuthMonad m 
+  => UserId -- ^ Id of user
+  -> Maybe Word -- ^ Number of codes. 'Nothing' means that server generates some default count of codes.
+  -- And server can define maximum count of codes that user can have at once.
+  -> MToken' '["auth-single-codes"]
+  -> m (OnlyField "codes" [SingleUseCode])
+authGetSingleUseCodes uid mcount token = runAuth $ do 
+  guardAuthToken token 
+  let uid' = toKey uid
+  _ <- runDB404 "user" $ readUserInfo uid
+  AuthConfig{..} <- getConfig 
+  let n = min singleUseCodePermamentMaximum $ fromMaybe singleUseCodeDefaultCount mcount 
+  runDB $ OnlyField <$> generateSingleUsedCodes uid' singleUseCodeGenerator n 
 
 -- | Getting user by id, throw 404 response if not found
 guardUser :: UserImplId -> AuthHandler UserImpl

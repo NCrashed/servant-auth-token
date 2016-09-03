@@ -115,8 +115,8 @@ UserRestore
 UserSingleUseCode
   value     SingleUseCode 
   user      UserImplId 
-  expire    UTCTime
-  used      Bool
+  expire    UTCTime Maybe -- Nothing is code that never expires
+  used      UTCTime Maybe
   deriving Generic Show
 
 AuthUserGroup

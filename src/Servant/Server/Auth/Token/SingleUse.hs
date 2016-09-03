@@ -12,6 +12,7 @@ module Servant.Server.Auth.Token.SingleUse(
   , registerSingleUseCode
   , invalideSingleUseCode
   , validateSingleUseCode
+  , generateSingleUsedCodes
   ) where 
 
 import Control.Monad
@@ -32,15 +33,17 @@ makeSingleUseExpire dt = do
 -- | Register single use code in DB
 registerSingleUseCode :: MonadIO m => UserImplId -- ^ Id of user
   -> SingleUseCode -- ^ Single usage code
-  -> UTCTime -- ^ Time when the code expires
+  -> Maybe UTCTime -- ^ Time when the code expires, 'Nothing' is never expiring code
   -> SqlPersistT m () 
 registerSingleUseCode uid code expire = void $ insert 
-  $ UserSingleUseCode code uid expire False
+  $ UserSingleUseCode code uid expire Nothing
 
 -- | Marks single use code that it cannot be used again
 invalideSingleUseCode :: MonadIO m => UserSingleUseCodeId -- ^ Id of code
   -> SqlPersistT m ()
-invalideSingleUseCode i = update i [UserSingleUseCodeUsed =. True] 
+invalideSingleUseCode i = do
+  t <- liftIO getCurrentTime
+  update i [UserSingleUseCodeUsed =. Just t] 
 
 -- | Check single use code and return 'True' on success.
 --
@@ -49,10 +52,34 @@ validateSingleUseCode :: MonadIO m => UserImplId -- ^ Id of user
   -> SingleUseCode -- ^ Single usage code 
   -> SqlPersistT m Bool
 validateSingleUseCode uid code = do 
-  mcode <- selectFirst [
+  t <- liftIO getCurrentTime
+  mcode <- selectFirst ([
       UserSingleUseCodeValue ==. code
     , UserSingleUseCodeUser ==. uid
-    , UserSingleUseCodeUsed ==. False 
-    ] [Desc UserSingleUseCodeExpire]
+    , UserSingleUseCodeUsed ==. Nothing
+    ] ++ (
+        [UserSingleUseCodeExpire ==. Nothing]
+    ||. [UserSingleUseCodeExpire >=. Just t]
+    )) [Desc UserSingleUseCodeExpire]
   whenJust mcode $ invalideSingleUseCode . entityKey
   return $ maybe False (const True) mcode
+
+-- | Generates a set single use codes that doesn't expire.
+--
+-- Note: previous codes without expiration are invalidated.
+generateSingleUsedCodes :: MonadIO m => UserImplId -- ^ Id of user
+  -> IO SingleUseCode -- ^ Generator of codes
+  -> Word -- Count of codes
+  -> SqlPersistT m [SingleUseCode]
+generateSingleUsedCodes uid gen n = do 
+  t <- liftIO getCurrentTime
+  updateWhere [
+      UserSingleUseCodeUser ==. uid
+    , UserSingleUseCodeUsed ==. Nothing
+    , UserSingleUseCodeExpire ==. Nothing 
+    ] 
+    [UserSingleUseCodeUsed =. Just t]
+  replicateM (fromIntegral n) $ do 
+    code <- liftIO gen 
+    _ <- insert $ UserSingleUseCode code uid Nothing Nothing
+    return code
