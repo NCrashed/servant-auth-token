@@ -1,3 +1,8 @@
+0.3.2.0
+=======
+
+* Support lts-7.1 (ghc 8 and persistent-0.6)
+
 0.3.0.0
 =======
 

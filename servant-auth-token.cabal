@@ -1,5 +1,5 @@
 name:                servant-auth-token
-version:             0.3.1.0
+version:             0.3.2.0
 synopsis:            Servant based API and server for token based authorisation
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme
@@ -22,21 +22,21 @@ library
     Servant.Server.Auth.Token.Common
     Servant.Server.Auth.Token.Config
     Servant.Server.Auth.Token.Error
-    Servant.Server.Auth.Token.Model 
+    Servant.Server.Auth.Token.Model
     Servant.Server.Auth.Token.Monad
     Servant.Server.Auth.Token.Pagination
     Servant.Server.Auth.Token.Patch
-    Servant.Server.Auth.Token.Restore 
+    Servant.Server.Auth.Token.Restore
     Servant.Server.Auth.Token.SingleUse
-  build-depends:       
+  build-depends:
       base                    >= 4.7    && < 5
     , aeson-injector          >= 1.0.4  && < 1.1
     , bytestring              >= 0.10   && < 0.11
     , containers              >= 0.5    && < 0.6
     , mtl                     >= 2.2    && < 2.3
-    , persistent              >= 2.2    && < 2.6
-    , persistent-postgresql   >= 2.2    && < 2.6
-    , persistent-template     >= 2.1    && < 2.6
+    , persistent              >= 2.2    && < 2.7
+    , persistent-postgresql   >= 2.2    && < 2.7
+    , persistent-template     >= 2.1    && < 2.7
     , pwstore-fast            >= 2.4    && < 2.5
     , servant-auth-token-api  >= 0.3.1  && < 0.4
     , servant-server          >= 0.7    && < 0.9
