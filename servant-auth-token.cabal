@@ -52,6 +52,7 @@ library
     DeriveGeneric
     FlexibleContexts
     FlexibleInstances
+    FunctionalDependencies
     GADTs
     GeneralizedNewtypeDeriving
     KindSignatures

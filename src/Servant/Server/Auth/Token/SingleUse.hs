@@ -10,76 +10,64 @@ Portability : Portable
 module Servant.Server.Auth.Token.SingleUse(
     makeSingleUseExpire
   , registerSingleUseCode
-  , invalideSingleUseCode
+  , invalidateSingleUseCode
   , validateSingleUseCode
   , generateSingleUsedCodes
-  ) where 
+  ) where
 
 import Control.Monad
-import Control.Monad.IO.Class 
-import Data.Time 
-import Database.Persist.Sql 
+import Control.Monad.IO.Class
+import Data.Aeson.WithField
+import Data.Time
 import Servant.API.Auth.Token
 import Servant.Server.Auth.Token.Common
-import Servant.Server.Auth.Token.Model 
+import Servant.Server.Auth.Token.Model
 
 -- | Calculate expire date for single usage code
 makeSingleUseExpire :: MonadIO m => NominalDiffTime -- ^ Duration of code
   -> m UTCTime -- ^ Time when the code expires
-makeSingleUseExpire dt = do 
+makeSingleUseExpire dt = do
   t <- liftIO getCurrentTime
   return $ dt `addUTCTime` t
 
 -- | Register single use code in DB
-registerSingleUseCode :: MonadIO m => UserImplId -- ^ Id of user
+registerSingleUseCode :: HasStorage m => UserImplId -- ^ Id of user
   -> SingleUseCode -- ^ Single usage code
   -> Maybe UTCTime -- ^ Time when the code expires, 'Nothing' is never expiring code
-  -> SqlPersistT m () 
-registerSingleUseCode uid code expire = void $ insert 
+  -> m ()
+registerSingleUseCode uid code expire = void $ insertSingleUseCode
   $ UserSingleUseCode code uid expire Nothing
 
 -- | Marks single use code that it cannot be used again
-invalideSingleUseCode :: MonadIO m => UserSingleUseCodeId -- ^ Id of code
-  -> SqlPersistT m ()
-invalideSingleUseCode i = do
+invalidateSingleUseCode :: HasStorage m => UserSingleUseCodeId -- ^ Id of code
+  -> m ()
+invalidateSingleUseCode i = do
   t <- liftIO getCurrentTime
-  update i [UserSingleUseCodeUsed =. Just t] 
+  setSingleUseCodeUsed i $ Just t
 
 -- | Check single use code and return 'True' on success.
 --
 -- On success invalidates single use code.
-validateSingleUseCode :: MonadIO m => UserImplId -- ^ Id of user 
-  -> SingleUseCode -- ^ Single usage code 
-  -> SqlPersistT m Bool
-validateSingleUseCode uid code = do 
+validateSingleUseCode :: HasStorage m => UserImplId -- ^ Id of user
+  -> SingleUseCode -- ^ Single usage code
+  -> m Bool
+validateSingleUseCode uid code = do
   t <- liftIO getCurrentTime
-  mcode <- selectFirst ([
-      UserSingleUseCodeValue ==. code
-    , UserSingleUseCodeUser ==. uid
-    , UserSingleUseCodeUsed ==. Nothing
-    ] ++ (
-        [UserSingleUseCodeExpire ==. Nothing]
-    ||. [UserSingleUseCodeExpire >=. Just t]
-    )) [Desc UserSingleUseCodeExpire]
-  whenJust mcode $ invalideSingleUseCode . entityKey
+  mcode <- getUnusedCode code uid t
+  whenJust mcode $ invalidateSingleUseCode . (\(WithField i _) -> i)
   return $ maybe False (const True) mcode
 
 -- | Generates a set single use codes that doesn't expire.
 --
 -- Note: previous codes without expiration are invalidated.
-generateSingleUsedCodes :: MonadIO m => UserImplId -- ^ Id of user
+generateSingleUsedCodes :: HasStorage m => UserImplId -- ^ Id of user
   -> IO SingleUseCode -- ^ Generator of codes
   -> Word -- Count of codes
-  -> SqlPersistT m [SingleUseCode]
-generateSingleUsedCodes uid gen n = do 
+  -> m [SingleUseCode]
+generateSingleUsedCodes uid gen n = do
   t <- liftIO getCurrentTime
-  updateWhere [
-      UserSingleUseCodeUser ==. uid
-    , UserSingleUseCodeUsed ==. Nothing
-    , UserSingleUseCodeExpire ==. Nothing 
-    ] 
-    [UserSingleUseCodeUsed =. Just t]
-  replicateM (fromIntegral n) $ do 
-    code <- liftIO gen 
-    _ <- insert $ UserSingleUseCode code uid Nothing Nothing
+  invalidatePermamentCodes uid t
+  replicateM (fromIntegral n) $ do
+    code <- liftIO gen
+    _ <- insertSingleUseCode $ UserSingleUseCode code uid Nothing Nothing
     return code

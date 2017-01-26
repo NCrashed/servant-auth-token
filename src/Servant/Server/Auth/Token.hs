@@ -11,7 +11,7 @@ Portability : Portable
 The module is server side implementation of "Servant.API.Auth.Token" API and intended to be
 used as drop in module for user servers or as external micro service.
 
-To use the server as constituent part, you need to provide customised 'AuthConfig' for 
+To use the server as constituent part, you need to provide customised 'AuthConfig' for
 'authServer' function and implement 'AuthMonad' instance for your handler monad.
 
 @
@@ -26,23 +26,23 @@ data Config = Config {
 }
 
 -- | Example of user side handler monad
-newtype App a = App { 
+newtype App a = App {
     runApp :: ReaderT Config (ExceptT ServantErr IO) a
   } deriving ( Functor, Applicative, Monad, MonadReader Config,
                MonadError ServantErr, MonadIO)
 
 -- | Now you can use authorisation API in your handler
-instance AuthMonad App where 
+instance AuthMonad App where
   getAuthConfig = asks authConfig
   liftAuthAction = App . lift
 
 -- | Include auth 'migrateAll' function into your migration code
 doMigrations :: SqlPersistT IO ()
-doMigrations = runMigrationUnsafe $ do 
+doMigrations = runMigrationUnsafe $ do
   migrateAll -- other user migrations
   Auth.migrateAll -- creation of authorisation entities
   -- optional creation of default admin if db is empty
-  ensureAdmin 17 "admin" "123456" "admin@localhost" 
+  ensureAdmin 17 "admin" "123456" "admin@localhost"
 @
 
 Now you can use 'guardAuthToken' to check authorisation headers in endpoints of your server:
@@ -53,8 +53,8 @@ customerGet :: CustomerId -- ^ Customer unique id
   -> MToken' '["customer-read"] -- ^ Required permissions for auth token
   -> App Customer -- ^ Customer data
 customerGet i token = do
-  guardAuthToken token 
-  runDB404 "customer" $ getCustomer i 
+  guardAuthToken token
+  guard404 "customer" $ getCustomer i
 @
 
 -}
@@ -62,10 +62,10 @@ module Servant.Server.Auth.Token(
   -- * Implementation
     authServer
   -- * Server API
-  , migrateAll
+  , HasStorage(..)
   , AuthMonad(..)
   -- * Helpers
-  , guardAuthToken 
+  , guardAuthToken
   , ensureAdmin
   , authUserByToken
   -- * API methods
@@ -91,10 +91,10 @@ module Servant.Server.Auth.Token(
   , authGroupList
   -- * Low-level API
   , getAuthToken
-  ) where 
+  ) where
 
-import Control.Monad 
-import Control.Monad.Except 
+import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 import Crypto.PasswordStore
 import Data.Aeson.Unit
@@ -105,8 +105,7 @@ import Data.Text.Encoding
 import Data.Time.Clock
 import Data.UUID
 import Data.UUID.V4
-import Database.Persist.Postgresql
-import Servant 
+import Servant
 
 import Servant.API.Auth.Token
 import Servant.API.Auth.Token.Pagination
@@ -118,41 +117,41 @@ import Servant.Server.Auth.Token.Pagination
 import Servant.Server.Auth.Token.Restore
 import Servant.Server.Auth.Token.SingleUse
 
-import qualified Data.ByteString.Lazy as BS 
+import qualified Data.ByteString.Lazy as BS
 
 -- | This function converts our 'AuthHandler' monad into the @ExceptT ServantErr
 -- IO@ monad that Servant's 'enter' function needs in order to run the
 -- application. The ':~>' type is a natural transformation, or, in
 -- non-category theory terms, a function that converts two type
 -- constructors without looking at the values in the types.
-convertAuthHandler :: AuthConfig -> AuthHandler :~> ExceptT ServantErr IO
+convertAuthHandler :: AuthConfig db -> AuthHandler db :~> ExceptT ServantErr IO
 convertAuthHandler cfg = Nat (flip runReaderT cfg . runAuthHandler)
 
 -- | The interface your application should implement to be able to use
 -- token authorisation API.
-class Monad m => AuthMonad m where 
-  getAuthConfig :: m AuthConfig 
-  liftAuthAction :: ExceptT ServantErr IO a -> m a 
+class (Monad m, HasStorage (AuthHandler db)) => AuthMonad db m | m -> db where
+  getAuthConfig :: m (AuthConfig db)
+  liftAuthAction :: ExceptT ServantErr IO a -> m a
 
-instance AuthMonad AuthHandler where 
-  getAuthConfig = getConfig 
-  liftAuthAction = AuthHandler . lift 
-  
+instance HasStorage (AuthHandler db) => AuthMonad db (AuthHandler db) where
+  getAuthConfig = getConfig
+  liftAuthAction = AuthHandler . lift
+
 -- | Helper to run handler in 'AuthMonad' context
-runAuth :: AuthMonad m => AuthHandler a -> m a
-runAuth m = do 
+runAuth :: AuthMonad db m => AuthHandler db a -> m a
+runAuth m = do
   cfg <- getAuthConfig
-  let Nat conv = convertAuthHandler cfg 
-  liftAuthAction $ conv m 
+  let Nat conv = convertAuthHandler cfg
+  liftAuthAction $ conv m
 
 -- | Implementation of AuthAPI
-authServer :: AuthConfig -> Server AuthAPI
+authServer :: HasStorage (AuthHandler db) => AuthConfig db -> Server AuthAPI
 authServer cfg = enter (convertAuthHandler cfg) (
        authSignin
   :<|> authSigninGetCode
   :<|> authSigninPostCode
   :<|> authTouch
-  :<|> authToken 
+  :<|> authToken
   :<|> authSignout
   :<|> authSignup
   :<|> authUsersInfo
@@ -162,65 +161,65 @@ authServer cfg = enter (convertAuthHandler cfg) (
   :<|> authUserDelete
   :<|> authRestore
   :<|> authGetSingleUseCodes
-  :<|> authGroupGet 
+  :<|> authGroupGet
   :<|> authGroupPost
-  :<|> authGroupPut 
+  :<|> authGroupPut
   :<|> authGroupPatch
   :<|> authGroupDelete
   :<|> authGroupList)
 
 -- | Implementation of "signin" method
-authSignin :: AuthMonad m
+authSignin :: AuthMonad db m
   => Maybe Login -- ^ Login query parameter
   -> Maybe Password -- ^ Password query parameter
   -> Maybe Seconds -- ^ Expire query parameter, how many seconds the token is valid
   -> m (OnlyField "token" SimpleToken) -- ^ If everything is OK, return token
 authSignin mlogin mpass mexpire = runAuth $ do
-  login <- require "login" mlogin 
-  pass <- require "pass" mpass 
-  Entity uid UserImpl{..} <- guardLogin login pass
+  login <- require "login" mlogin
+  pass <- require "pass" mpass
+  WithField uid UserImpl{..} <- guardLogin login pass
   OnlyField <$> getAuthToken uid mexpire
-  where 
+  where
   guardLogin login pass = do -- check login and password, return passed user
-    muser <- runDB $ selectFirst [UserImplLogin ==. login] []
+    muser <- getUserImplByLogin login
     let err = throw401 "Cannot find user with given combination of login and pass"
-    case muser of 
+    case muser of
       Nothing -> err
-      Just user@(Entity _ UserImpl{..}) -> if passToByteString pass `verifyPassword` passToByteString userImplPassword 
+      Just user@(WithField _ UserImpl{..}) -> if passToByteString pass `verifyPassword` passToByteString userImplPassword
         then return user
         else err
 
 -- | Helper to get or generate new token for user
-getAuthToken :: AuthMonad m
+getAuthToken :: AuthMonad db m
   => UserImplId -- ^ User for whom we want token
   -> Maybe Seconds -- ^ Expiration duration, 'Nothing' means default
   -> m SimpleToken -- ^ Old token (if it doesn't expire) or new one
-getAuthToken uid mexpire = runAuth $ do 
+getAuthToken uid mexpire = runAuth $ do
   expire <- calcExpire mexpire
   mt <- getExistingToken  -- check whether there is already existing token
-  case mt of 
+  case mt of
     Nothing -> createToken expire -- create new token
     Just t -> touchToken t expire -- prolong token expiration time
   where
   getExistingToken = do -- return active token for specified user id
-    t <- liftIO getCurrentTime 
-    runDB $ selectFirst [AuthTokenUser ==. uid, AuthTokenExpire >. t] []
+    t <- liftIO getCurrentTime
+    findAuthToken uid t
 
-  createToken expire = do -- generate and save fresh token 
+  createToken expire = do -- generate and save fresh token
     token <- toText <$> liftIO nextRandom
-    _ <- runDB $ insert AuthToken {
-        authTokenValue = token 
-      , authTokenUser = uid 
-      , authTokenExpire = expire 
+    _ <- insertAuthToken AuthToken {
+        authTokenValue = token
+      , authTokenUser = uid
+      , authTokenExpire = expire
       }
-    return token 
+    return token
 
 -- | Authorisation via code of single usage.
 --
 -- Implementation of 'AuthSigninGetCodeMethod' endpoint.
 --
 -- Logic of authorisation via this method is:
--- 
+--
 -- * Client sends GET request to 'AuthSigninGetCodeMethod' endpoint
 --
 -- * Server generates single use token and sends it via
@@ -241,26 +240,26 @@ getAuthToken uid mexpire = runAuth $ do
 -- * Client can get info about user with 'AuthTokenInfoMethod' endpoint.
 --
 -- See also: 'authSigninPostCode'
-authSigninGetCode :: AuthMonad m 
+authSigninGetCode :: AuthMonad db m
   => Maybe Login -- ^ User login, required
-  -> m Unit 
-authSigninGetCode mlogin = runAuth $ do 
-  login <- require "login" mlogin 
-  uinfo <- runDB404 "user" $ readUserInfoByLogin login
-  let uid = toKey $ respUserId uinfo 
+  -> m Unit
+authSigninGetCode mlogin = runAuth $ do
+  login <- require "login" mlogin
+  uinfo <- guard404 "user" $ readUserInfoByLogin login
+  let uid = toKey $ respUserId uinfo
 
   AuthConfig{..} <- getConfig
-  code <- liftIO singleUseCodeGenerator 
+  code <- liftIO singleUseCodeGenerator
   expire <- makeSingleUseExpire singleUseCodeExpire
-  runDB $ registerSingleUseCode uid code (Just expire)
-  liftIO $ singleUseCodeSender uinfo code 
+  registerSingleUseCode uid code (Just expire)
+  liftIO $ singleUseCodeSender uinfo code
 
-  return Unit 
+  return Unit
 
 -- | Authorisation via code of single usage.
 --
 -- Logic of authorisation via this method is:
--- 
+--
 -- * Client sends GET request to 'AuthSigninGetCodeMethod' endpoint
 --
 -- * Server generates single use token and sends it via
@@ -281,328 +280,319 @@ authSigninGetCode mlogin = runAuth $ do
 -- * Client can get info about user with 'AuthTokenInfoMethod' endpoint.
 --
 -- See also: 'authSigninGetCode'
-authSigninPostCode :: AuthMonad m 
+authSigninPostCode :: AuthMonad db m
   => Maybe Login -- ^ User login, required
   -> Maybe SingleUseCode -- ^ Received single usage code, required
-  -> Maybe Seconds 
-  -- ^ Time interval after which the token expires, 'Nothing' means 
+  -> Maybe Seconds
+  -- ^ Time interval after which the token expires, 'Nothing' means
   -- some default value
   -> m (OnlyField "token" SimpleToken)
-authSigninPostCode mlogin mcode mexpire = runAuth $ do 
-  login <- require "login" mlogin 
+authSigninPostCode mlogin mcode mexpire = runAuth $ do
+  login <- require "login" mlogin
   code <- require "code" mcode
 
-  uinfo <- runDB404 "user" $ readUserInfoByLogin login
-  let uid = toKey $ respUserId uinfo 
-  isValid <- runDB $ validateSingleUseCode uid code 
+  uinfo <- guard404 "user" $ readUserInfoByLogin login
+  let uid = toKey $ respUserId uinfo
+  isValid <- validateSingleUseCode uid code
   unless isValid $ throw401 "Single usage code doesn't match"
 
   OnlyField <$> getAuthToken uid mexpire
 
 -- | Calculate expiration timestamp for token
-calcExpire :: Maybe Seconds -> AuthHandler UTCTime
-calcExpire mexpire = do 
+calcExpire :: Maybe Seconds -> AuthHandler db UTCTime
+calcExpire mexpire = do
   t <- liftIO getCurrentTime
   AuthConfig{..} <- getConfig
-  let requestedExpire = maybe defaultExpire fromIntegral mexpire 
+  let requestedExpire = maybe defaultExpire fromIntegral mexpire
   let boundedExpire = maybe requestedExpire (min requestedExpire) maximumExpire
   return $ boundedExpire `addUTCTime` t
 
 -- prolong token with new timestamp
-touchToken :: Entity AuthToken -> UTCTime -> AuthHandler SimpleToken
-touchToken (Entity tid tok) expire = do
-  runDB $ replace tid tok {
-      authTokenExpire = expire 
+touchToken :: HasStorage (AuthHandler db) => WithId AuthTokenId AuthToken -> UTCTime -> AuthHandler db SimpleToken
+touchToken (WithField tid tok) expire = do
+  replaceAuthToken tid tok {
+      authTokenExpire = expire
     }
   return $ authTokenValue tok
 
 -- | Implementation of "touch" method
-authTouch :: AuthMonad m
+authTouch :: AuthMonad db m
   => Maybe Seconds -- ^ Expire query parameter, how many seconds the token should be valid by now. 'Nothing' means default value defined in server config.
-  -> MToken '[] -- ^ Authorisation header with token 
+  -> MToken '[] -- ^ Authorisation header with token
   -> m Unit
-authTouch mexpire token = runAuth $ do 
-  Entity i mt <- guardAuthToken' (fmap unToken token) []
+authTouch mexpire token = runAuth $ do
+  WithField i mt <- guardAuthToken' (fmap unToken token) []
   expire <- calcExpire mexpire
-  runDB $ replace i mt { authTokenExpire = expire }
-  return Unit 
+  replaceAuthToken i mt { authTokenExpire = expire }
+  return Unit
 
--- | Implementation of "token" method, return 
+-- | Implementation of "token" method, return
 -- info about user binded to the token
-authToken :: AuthMonad m
-  => MToken '[] -- ^ Authorisation header with token 
-  -> m RespUserInfo 
-authToken token = runAuth $ do 
+authToken :: AuthMonad db m
+  => MToken '[] -- ^ Authorisation header with token
+  -> m RespUserInfo
+authToken token = runAuth $ do
   i <- authUserByToken token
-  runDB404 "user" . readUserInfo . fromKey $ i
+  guard404 "user" . readUserInfo . fromKey $ i
 
 -- | Getting user id by token
-authUserByToken :: AuthMonad m => MToken '[] -> m UserImplId 
-authUserByToken token = runAuth $ do 
-  Entity _ mt <- guardAuthToken' (fmap unToken token) []
-  return $ authTokenUser mt 
+authUserByToken :: AuthMonad db m => MToken '[] -> m UserImplId
+authUserByToken token = runAuth $ do
+  WithField _ mt <- guardAuthToken' (fmap unToken token) []
+  return $ authTokenUser mt
 
 -- | Implementation of "signout" method
-authSignout :: AuthMonad m
-  => Maybe (Token '[]) -- ^ Authorisation header with token 
+authSignout :: AuthMonad db m
+  => Maybe (Token '[]) -- ^ Authorisation header with token
   -> m Unit
-authSignout token = runAuth $ do 
-  Entity i mt <- guardAuthToken' (fmap unToken token) []
+authSignout token = runAuth $ do
+  WithField i mt <- guardAuthToken' (fmap unToken token) []
   expire <- liftIO getCurrentTime
-  runDB $ replace i mt { authTokenExpire = expire }
-  return Unit 
-  
+  replaceAuthToken i mt { authTokenExpire = expire }
+  return Unit
+
 -- | Checks given password and if it is invalid in terms of config
 -- password validator, throws 400 error.
-guardPassword :: Password -> AuthHandler ()
-guardPassword p = do 
+guardPassword :: Password -> AuthHandler db ()
+guardPassword p = do
   AuthConfig{..} <- getConfig
   whenJust (passwordValidator p) $ throw400 . BS.fromStrict . encodeUtf8
 
 -- | Implementation of "signup" method
-authSignup :: AuthMonad m
+authSignup :: AuthMonad db m
   => ReqRegister -- ^ Registration info
-  -> MToken' '["auth-register"] -- ^ Authorisation header with token 
+  -> MToken' '["auth-register"] -- ^ Authorisation header with token
   -> m (OnlyField "user" UserId)
-authSignup ReqRegister{..} token = runAuth $ do 
+authSignup ReqRegister{..} token = runAuth $ do
   guardAuthToken token
   guardUserInfo
   guardPassword reqRegPassword
   strength <- getsConfig passwordsStrength
-  i <- runDB $ do
-    i <- createUser strength reqRegLogin reqRegPassword reqRegEmail reqRegPermissions
-    whenJust reqRegGroups $ setUserGroups i
-    return i
-  return $ OnlyField . fromKey $ i 
-  where 
-    guardUserInfo = do 
-      c <- runDB $ count [UserImplLogin ==. reqRegLogin]
-      when (c > 0) $ throw400 "User with specified id is already registered"
+  i <- createUser strength reqRegLogin reqRegPassword reqRegEmail reqRegPermissions
+  whenJust reqRegGroups $ setUserGroups i
+  return $ OnlyField . fromKey $ i
+  where
+    guardUserInfo = do
+      mu <- getUserImplByLogin reqRegLogin
+      whenJust mu $ const $ throw400 "User with specified id is already registered"
 
 -- | Implementation of get "users" method
-authUsersInfo :: AuthMonad m
+authUsersInfo :: AuthMonad db m
   => Maybe Page -- ^ Page num parameter
   -> Maybe PageSize -- ^ Page size parameter
   -> MToken' '["auth-info"] -- ^ Authorisation header with token
   -> m RespUsersInfo
-authUsersInfo mp msize token = runAuth $ do 
+authUsersInfo mp msize token = runAuth $ do
   guardAuthToken token
-  pagination mp msize $ \page size -> do 
-    (users, total) <- runDB $ (,)
-      <$> (do
-        users <- selectList [] [Asc UserImplId, OffsetBy (fromIntegral $ page * size), LimitTo (fromIntegral size)]
-        perms <- mapM (getUserPermissions . entityKey) users 
-        groups <- mapM (getUserGroups . entityKey) users
-        return $ zip3 users perms groups)
-      <*> count ([] :: [Filter UserImpl])
+  pagination mp msize $ \page size -> do
+    (users', total) <- listUsersPaged page size
+    perms <- mapM (getUserPermissions . (\(WithField i _) -> i)) users'
+    groups <- mapM (getUserGroups . (\(WithField i _) -> i)) users'
+    let users = zip3 users' perms groups
     return RespUsersInfo {
-        respUsersItems = (\(user, perms, groups) -> userToUserInfo user perms groups) <$> users 
+        respUsersItems = (\(user, ps, grs) -> userToUserInfo user ps grs) <$> users
       , respUsersPages = ceiling $ (fromIntegral total :: Double) / fromIntegral size
       }
 
 -- | Implementation of get "user" method
-authUserInfo :: AuthMonad m
-  => UserId -- ^ User id 
+authUserInfo :: AuthMonad db m
+  => UserId -- ^ User id
   -> MToken' '["auth-info"] -- ^ Authorisation header with token
   -> m RespUserInfo
-authUserInfo uid' token = runAuth $ do 
+authUserInfo uid' token = runAuth $ do
   guardAuthToken token
-  runDB404 "user" $ readUserInfo uid'
+  guard404 "user" $ readUserInfo uid'
 
 -- | Implementation of patch "user" method
-authUserPatch :: AuthMonad m
-  => UserId -- ^ User id 
+authUserPatch :: AuthMonad db m
+  => UserId -- ^ User id
   -> PatchUser -- ^ JSON with fields for patching
   -> MToken' '["auth-update"] -- ^ Authorisation header with token
   -> m Unit
-authUserPatch uid' body token = runAuth $ do 
+authUserPatch uid' body token = runAuth $ do
   guardAuthToken token
-  whenJust (patchUserPassword body) guardPassword 
-  let uid = toSqlKey . fromIntegral $ uid'
-  user <- guardUser uid 
+  whenJust (patchUserPassword body) guardPassword
+  let uid = toKey uid'
+  user <- guardUser uid
   strength <- getsConfig passwordsStrength
-  Entity _ user' <- runDB $ patchUser strength body $ Entity uid user 
-  runDB $ replace uid user'
+  WithField _ user' <- patchUser strength body $ WithField uid user
+  replaceUserImpl uid user'
   return Unit
 
 -- | Implementation of put "user" method
-authUserPut :: AuthMonad m
-  => UserId -- ^ User id 
+authUserPut :: AuthMonad db m
+  => UserId -- ^ User id
   -> ReqRegister -- ^ New user
   -> MToken' '["auth-update"] -- ^ Authorisation header with token
   -> m Unit
-authUserPut uid' ReqRegister{..} token = runAuth $ do 
+authUserPut uid' ReqRegister{..} token = runAuth $ do
   guardAuthToken token
   guardPassword reqRegPassword
-  let uid = toSqlKey . fromIntegral $ uid'
+  let uid = toKey uid'
   let user = UserImpl {
         userImplLogin = reqRegLogin
       , userImplPassword = ""
       , userImplEmail = reqRegEmail
       }
-  user' <- setUserPassword reqRegPassword user 
-  runDB $ do
-    replace uid user'
-    setUserPermissions uid reqRegPermissions
-    whenJust reqRegGroups $ setUserGroups uid
-  return Unit 
+  user' <- setUserPassword reqRegPassword user
+  replaceUserImpl uid user'
+  setUserPermissions uid reqRegPermissions
+  whenJust reqRegGroups $ setUserGroups uid
+  return Unit
 
 -- | Implementation of patch "user" method
-authUserDelete :: AuthMonad m
-  => UserId -- ^ User id 
+authUserDelete :: AuthMonad db m
+  => UserId -- ^ User id
   -> MToken' '["auth-delete"] -- ^ Authorisation header with token
   -> m Unit
-authUserDelete uid' token = runAuth $ do 
+authUserDelete uid' token = runAuth $ do
   guardAuthToken token
-  runDB $ deleteCascade (toKey uid' :: UserImplId)
-  return Unit 
+  deleteUserImpl $ toKey uid'
+  return Unit
 
 -- Generate new password for user. There is two phases, first, the method
 -- is called without 'code' parameter. The system sends email with a restore code
--- to email. After that a call of the method with the code is needed to 
+-- to email. After that a call of the method with the code is needed to
 -- change password. Need configured SMTP server.
-authRestore :: AuthMonad m
-  => UserId -- ^ User id 
+authRestore :: AuthMonad db m
+  => UserId -- ^ User id
   -> Maybe RestoreCode
   -> Maybe Password
   -> m Unit
-authRestore uid' mcode mpass = runAuth $ do 
+authRestore uid' mcode mpass = runAuth $ do
   let uid = toKey uid'
-  user <- guardUser uid 
-  case mcode of 
-    Nothing -> do 
+  user <- guardUser uid
+  case mcode of
+    Nothing -> do
       dt <- getsConfig restoreExpire
       t <- liftIO getCurrentTime
       AuthConfig{..} <- getConfig
-      rc <- runDB $ getRestoreCode restoreCodeGenerator uid $ addUTCTime dt t 
-      uinfo <- runDB404 "user" $ readUserInfo uid'
-      sendRestoreCode uinfo rc 
-    Just code -> do 
+      rc <- getRestoreCode restoreCodeGenerator uid $ addUTCTime dt t
+      uinfo <- guard404 "user" $ readUserInfo uid'
+      sendRestoreCode uinfo rc
+    Just code -> do
       pass <- require "password" mpass
       guardPassword pass
       guardRestoreCode uid code
       user' <- setUserPassword pass user
-      runDB $ replace uid user'
-  return Unit 
+      replaceUserImpl uid user'
+  return Unit
 
 -- | Implementation of 'AuthGetSingleUseCodes' endpoint.
-authGetSingleUseCodes :: AuthMonad m 
+authGetSingleUseCodes :: AuthMonad db m
   => UserId -- ^ Id of user
   -> Maybe Word -- ^ Number of codes. 'Nothing' means that server generates some default count of codes.
   -- And server can define maximum count of codes that user can have at once.
   -> MToken' '["auth-single-codes"]
   -> m (OnlyField "codes" [SingleUseCode])
-authGetSingleUseCodes uid mcount token = runAuth $ do 
-  guardAuthToken token 
+authGetSingleUseCodes uid mcount token = runAuth $ do
+  guardAuthToken token
   let uid' = toKey uid
-  _ <- runDB404 "user" $ readUserInfo uid
-  AuthConfig{..} <- getConfig 
-  let n = min singleUseCodePermamentMaximum $ fromMaybe singleUseCodeDefaultCount mcount 
-  runDB $ OnlyField <$> generateSingleUsedCodes uid' singleUseCodeGenerator n 
+  _ <- guard404 "user" $ readUserInfo uid
+  AuthConfig{..} <- getConfig
+  let n = min singleUseCodePermamentMaximum $ fromMaybe singleUseCodeDefaultCount mcount
+  OnlyField <$> generateSingleUsedCodes uid' singleUseCodeGenerator n
 
 -- | Getting user by id, throw 404 response if not found
-guardUser :: UserImplId -> AuthHandler UserImpl
-guardUser uid = do 
-  muser <- runDB $ get uid 
-  case muser of 
+guardUser :: HasStorage (AuthHandler db) => UserImplId -> AuthHandler db UserImpl
+guardUser uid = do
+  muser <- getUserImpl uid
+  case muser of
     Nothing -> throw404 "User not found"
-    Just user -> return user 
+    Just user -> return user
 
 -- | If the token is missing or the user of the token
 -- doesn't have needed permissions, throw 401 response
-guardAuthToken :: forall perms m . (PermsList perms, AuthMonad m) => MToken perms -> m ()
+guardAuthToken :: forall perms m db . (PermsList perms, AuthMonad db m) => MToken perms -> m ()
 guardAuthToken mt = runAuth $ void $ guardAuthToken' (fmap unToken mt) $ unliftPerms (Proxy :: Proxy perms)
 
 -- | Same as `guardAuthToken` but returns record about the token
-guardAuthToken' :: Maybe SimpleToken -> [Permission] -> AuthHandler (Entity AuthToken)
+guardAuthToken' :: HasStorage (AuthHandler db) => Maybe SimpleToken -> [Permission] -> AuthHandler db (WithId AuthTokenId AuthToken)
 guardAuthToken' Nothing _ = throw401 "Token required"
-guardAuthToken' (Just token) perms = do 
+guardAuthToken' (Just token) perms = do
   t <- liftIO getCurrentTime
-  mt <- runDB $ selectFirst [AuthTokenValue ==. token] []
-  case mt of 
+  mt <- findAuthTokenByValue token
+  case mt of
     Nothing -> throw401 "Token is not valid"
-    Just et@(Entity _ AuthToken{..}) -> do 
+    Just et@(WithField _ AuthToken{..}) -> do
       when (t > authTokenExpire) $ throwError $ err401 { errBody = "Token expired" }
-      mu <- runDB $ get authTokenUser
-      case mu of 
+      mu <- getUserImpl authTokenUser
+      case mu of
         Nothing -> throw500 "User of the token doesn't exist"
         Just UserImpl{..} -> do
-          isAdmin <- runDB $ hasPerm authTokenUser adminPerm
-          hasAllPerms <- runDB $ hasPerms authTokenUser perms 
+          isAdmin <- hasPerm authTokenUser adminPerm
+          hasAllPerms <- hasPerms authTokenUser perms
           unless (isAdmin || hasAllPerms) $ throw401 $
             "User doesn't have all required permissions: " <> showb perms
           return et
 
 -- | Rehash password for user
-setUserPassword :: Password -> UserImpl -> AuthHandler UserImpl
-setUserPassword pass user = do 
-  strength <- getsConfig passwordsStrength 
-  setUserPassword' strength pass user 
+setUserPassword :: Password -> UserImpl -> AuthHandler db UserImpl
+setUserPassword pass user = do
+  strength <- getsConfig passwordsStrength
+  setUserPassword' strength pass user
 
 -- | Getting info about user group, requires 'authInfoPerm' for token
-authGroupGet :: AuthMonad m
+authGroupGet :: AuthMonad db m
   => UserGroupId
   -> MToken' '["auth-info"] -- ^ Authorisation header with token
   -> m UserGroup
-authGroupGet i token = runAuth $ do 
+authGroupGet i token = runAuth $ do
   guardAuthToken token
-  runDB404 "user group" $ readUserGroup i 
+  guard404 "user group" $ readUserGroup i
 
 -- | Inserting new user group, requires 'authUpdatePerm' for token
-authGroupPost :: AuthMonad m
+authGroupPost :: AuthMonad db m
   => UserGroup
   -> MToken' '["auth-update"] -- ^ Authorisation header with token
   -> m (OnlyId UserGroupId)
-authGroupPost ug token = runAuth $ do 
+authGroupPost ug token = runAuth $ do
   guardAuthToken token
-  runDB $ OnlyField <$> insertUserGroup ug
+  OnlyField <$> insertUserGroup ug
 
 -- | Replace info about given user group, requires 'authUpdatePerm' for token
-authGroupPut :: AuthMonad m
+authGroupPut :: AuthMonad db m
   => UserGroupId
   -> UserGroup
   -> MToken' '["auth-update"] -- ^ Authorisation header with token
   -> m Unit
-authGroupPut i ug token = runAuth $ do 
+authGroupPut i ug token = runAuth $ do
   guardAuthToken token
-  runDB $ updateUserGroup i ug 
+  updateUserGroup i ug
   return Unit
 
 -- | Patch info about given user group, requires 'authUpdatePerm' for token
-authGroupPatch :: AuthMonad m
+authGroupPatch :: AuthMonad db m
   => UserGroupId
   -> PatchUserGroup
   -> MToken' '["auth-update"] -- ^ Authorisation header with token
   -> m Unit
-authGroupPatch i up token = runAuth $ do 
+authGroupPatch i up token = runAuth $ do
   guardAuthToken token
-  runDB $ patchUserGroup i up 
-  return Unit 
+  patchUserGroup i up
+  return Unit
 
 -- | Delete all info about given user group, requires 'authDeletePerm' for token
-authGroupDelete :: AuthMonad m
+authGroupDelete :: AuthMonad db m
   => UserGroupId
   -> MToken' '["auth-delete"] -- ^ Authorisation header with token
   -> m Unit
-authGroupDelete i token = runAuth $ do 
+authGroupDelete i token = runAuth $ do
   guardAuthToken token
-  runDB $ deleteUserGroup i 
-  return Unit 
+  deleteUserGroup i
+  return Unit
 
--- | Get list of user groups, requires 'authInfoPerm' for token 
-authGroupList :: AuthMonad m
+-- | Get list of user groups, requires 'authInfoPerm' for token
+authGroupList :: AuthMonad db m
   => Maybe Page
   -> Maybe PageSize
   -> MToken' '["auth-info"] -- ^ Authorisation header with token
   -> m (PagedList UserGroupId UserGroup)
-authGroupList mp msize token = runAuth $ do 
+authGroupList mp msize token = runAuth $ do
   guardAuthToken token
-  pagination mp msize $ \page size -> do 
-    (groups, total) <- runDB $ (,)
-      <$> (do
-        is <- selectKeysList [] [Asc AuthUserGroupId, OffsetBy (fromIntegral $ page * size), LimitTo (fromIntegral size)]
-        forM is $ (\i -> fmap (WithField i) <$> readUserGroup i) . fromKey)
-      <*> count ([] :: [Filter AuthUserGroup])
+  pagination mp msize $ \page size -> do
+    (groups', total) <- listGroupsPaged page size
+    groups <- forM groups' $ (\i -> fmap (WithField i) <$> readUserGroup i) . fromKey . (\(WithField i _) -> i)
     return PagedList {
         pagedListItems = catMaybes groups
       , pagedListPages = ceiling $ (fromIntegral total :: Double) / fromIntegral size

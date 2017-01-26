@@ -11,46 +11,45 @@ module Servant.Server.Auth.Token.Restore(
     getRestoreCode
   , guardRestoreCode
   , sendRestoreCode
-  ) where 
+  ) where
 
-import Control.Monad 
-import Control.Monad.IO.Class 
+import Control.Monad
+import Control.Monad.IO.Class
+import Data.Aeson.WithField
 import Data.Time.Clock
-import Database.Persist.Postgresql
 
 import Servant.API.Auth.Token
 import Servant.Server.Auth.Token.Config
-import Servant.Server.Auth.Token.Model 
-import Servant.Server.Auth.Token.Monad 
+import Servant.Server.Auth.Token.Model
+import Servant.Server.Auth.Token.Monad
 
 -- | Get current restore code for user or generate new
-getRestoreCode :: IO RestoreCode -> UserImplId -> UTCTime -> SqlPersistT IO RestoreCode
-getRestoreCode generator uid expire = do 
+getRestoreCode :: HasStorage m => IO RestoreCode -> UserImplId -> UTCTime -> m RestoreCode
+getRestoreCode generator uid expire = do
   t <- liftIO getCurrentTime
-  mcode <- selectFirst [UserRestoreUser ==. uid, UserRestoreExpire >. t] [Desc UserRestoreExpire]
-  case mcode of 
-    Nothing -> do 
+  mcode <- selectLastRestoreCode uid t
+  case mcode of
+    Nothing -> do
       code <- liftIO generator
-      void $ insert UserRestore {
-          userRestoreValue = code 
+      void $ insertUserRestore UserRestore {
+          userRestoreValue = code
         , userRestoreUser = uid
-        , userRestoreExpire = expire 
+        , userRestoreExpire = expire
         }
-      return code 
-    Just code -> return $ userRestoreValue . entityVal $ code 
+      return code
+    Just code -> return $ userRestoreValue . (\(WithField _ v) -> v) $ code
 
 -- | Throw if the restore code isn't valid for given user, if valid, invalidates the code
-guardRestoreCode :: UserImplId -> RestoreCode -> AuthHandler ()
-guardRestoreCode uid code = do 
+guardRestoreCode :: HasStorage (AuthHandler db) => UserImplId -> RestoreCode -> AuthHandler db ()
+guardRestoreCode uid code = do
   t <- liftIO getCurrentTime
-  mcode <- runDB $ selectFirst [UserRestoreUser ==. uid, UserRestoreValue ==. code
-    , UserRestoreExpire >. t] [Desc UserRestoreExpire]
-  case mcode of 
+  mcode <- findRestoreCode uid code t
+  case mcode of
     Nothing -> throw400 "Invalid restore code"
-    Just (Entity i rc) -> runDB $ replace i rc { userRestoreExpire = t }
+    Just (WithField i rc) -> replaceRestoreCode i rc { userRestoreExpire = t }
 
 -- | Send restore code to the user' email
-sendRestoreCode :: RespUserInfo -> RestoreCode -> AuthHandler ()
-sendRestoreCode user code = do 
+sendRestoreCode :: HasStorage (AuthHandler db) => RespUserInfo -> RestoreCode -> AuthHandler db ()
+sendRestoreCode user code = do
   AuthConfig{..} <- getConfig
-  liftIO $ restoreCodeSender user code 
+  liftIO $ restoreCodeSender user code
