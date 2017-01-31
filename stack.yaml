@@ -37,9 +37,11 @@ resolver: lts-7.16
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - '.'
+- 'servant-auth-token-persistent'
 - location:
-   git: https://github.com/NCrashed/servant-auth-token-api.git
-   commit: d011f7bfecd18d07ff67ce9f67f8741e110a2719
+    git: https://github.com/NCrashed/servant-auth-token-api.git
+    commit: d011f7bfecd18d07ff67ce9f67f8741e110a2719
+  extra-dep: true
 #- '../servant-auth-token-api'
 
 # Dependency packages to be pulled from upstream that are not in the resolver

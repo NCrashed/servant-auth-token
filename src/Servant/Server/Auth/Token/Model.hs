@@ -218,11 +218,6 @@ data AuthUserGroupPerms = AuthUserGroupPerms {
 -- | Abstract storage interface. External libraries can implement this in terms
 -- of PostgreSQL or acid-state.
 class MonadIO m => HasStorage m where
-  -- | Storage handler that 'm' holds internally
-  type StorageDB m :: *
-  -- | Getting storage from monad context (should be used to implement other operations of the typeclass)
-  getStorage :: m (StorageDB m)
-
   -- | Getting user from storage
   getUserImpl :: UserImplId -> m (Maybe UserImpl)
   -- | Getting user from storage by login
