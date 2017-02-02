@@ -4,23 +4,23 @@
 		{
 			"path": "."
 		}
-	], 
+	],
   "build_systems":
   [
     {
       "name": "Stack",
       "working_dir": "${project_path}",
-      "shell_cmd": "stack install"    
+      "shell_cmd": "stack install"
     },
     {
       "name": "Stack pedantic",
       "working_dir": "${project_path}",
-      "shell_cmd": "stack install --pedantic"    
+      "shell_cmd": "stack install --pedantic"
     },
     {
       "name": "Stack test",
       "working_dir": "${project_path}/aeson-injector",
-      "shell_cmd": "stack test"    
+      "shell_cmd": "stack test"
     },
   ]
 }

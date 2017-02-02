@@ -9,6 +9,7 @@ Portability : Portable
 -}
 module Servant.Server.Auth.Token.Monad(
     AuthHandler
+  , HasAuthConfig(..)
   , require
   , getConfig
   , getsConfig
@@ -17,7 +18,7 @@ module Servant.Server.Auth.Token.Monad(
   ) where
 
 import Control.Monad.Except                 (MonadError)
-import Control.Monad.Reader                 (MonadIO, MonadReader, ask, asks)
+import Control.Monad.IO.Class
 import Data.Monoid                          ((<>))
 import Servant
 
@@ -28,7 +29,7 @@ import Servant.Server.Auth.Token.Error as Reexport
 import Servant.Server.Auth.Token.Model
 
 -- | Context that is needed to run the auth server
-type AuthHandler m = (MonadReader AuthConfig m, MonadError ServantErr m, MonadIO m, HasStorage m)
+type AuthHandler m = (HasAuthConfig m, MonadError ServantErr m, MonadIO m, HasStorage m)
 
 -- | If the value is 'Nothing', throw 400 response
 require :: AuthHandler m => BS.ByteString -> Maybe a -> m a
@@ -37,11 +38,11 @@ require _ (Just a) = return a
 
 -- | Getting config from global state
 getConfig :: AuthHandler m => m AuthConfig
-getConfig = ask
+getConfig = getAuthConfig
 
 -- | Getting config part from global state
 getsConfig :: AuthHandler m => (AuthConfig -> a) -> m a
-getsConfig = asks
+getsConfig f = fmap f getAuthConfig
 
 -- | Run RDBMS operation and throw 404 (not found) error if
 -- the second arg returns 'Nothing'

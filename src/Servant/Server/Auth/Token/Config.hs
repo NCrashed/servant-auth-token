@@ -9,6 +9,7 @@ Portability : Portable
 -}
 module Servant.Server.Auth.Token.Config(
     AuthConfig(..)
+  , HasAuthConfig(..)
   , defaultAuthConfig
   ) where
 
@@ -20,6 +21,10 @@ import Data.UUID.V4
 import Servant.Server
 
 import Servant.API.Auth.Token
+
+-- | Monad that can read an auth config
+class Monad m => HasAuthConfig m where
+  getAuthConfig :: m AuthConfig
 
 -- | Configuration specific for authorisation system
 data AuthConfig = AuthConfig {
