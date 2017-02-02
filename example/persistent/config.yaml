@@ -5,3 +5,4 @@ db-port: 5432
 db-user: postgres
 db-pass: ""
 db-base: auth-test
+db-size: 10

@@ -22,6 +22,8 @@ import Servant.Server.Auth.Token.Config
 import Servant.Server.Auth.Token.Model
 import Servant.Server.Auth.Token.Persistent
 
+import qualified Servant.Server.Auth.Token.Persistent.Schema as S
+
 import Config
 
 -- | Server private environment
@@ -37,10 +39,14 @@ data ServerEnv = ServerEnv {
 -- | Create new server environment
 newServerEnv :: MonadIO m => ServerConfig -> m ServerEnv
 newServerEnv cfg = do
+  pool <- liftIO $ do
+    pool <- createPool cfg
+    runSqlPool (runMigration S.migrateAll) pool
+    return pool
   let env = ServerEnv {
         envConfig = cfg
       , envAuthConfig = defaultAuthConfig
-      , envPool = undefined
+      , envPool = pool
       }
   return env
 
