@@ -40,7 +40,7 @@ getRestoreCode generator uid expire = do
     Just code -> return $ userRestoreValue . (\(WithField _ v) -> v) $ code
 
 -- | Throw if the restore code isn't valid for given user, if valid, invalidates the code
-guardRestoreCode :: HasStorage (AuthHandler db) => UserImplId -> RestoreCode -> AuthHandler db ()
+guardRestoreCode :: AuthHandler m => UserImplId -> RestoreCode -> m ()
 guardRestoreCode uid code = do
   t <- liftIO getCurrentTime
   mcode <- findRestoreCode uid code t
@@ -49,7 +49,7 @@ guardRestoreCode uid code = do
     Just (WithField i rc) -> replaceRestoreCode i rc { userRestoreExpire = t }
 
 -- | Send restore code to the user' email
-sendRestoreCode :: HasStorage (AuthHandler db) => RespUserInfo -> RestoreCode -> AuthHandler db ()
+sendRestoreCode :: AuthHandler m => RespUserInfo -> RestoreCode -> m ()
 sendRestoreCode user code = do
   AuthConfig{..} <- getConfig
   liftIO $ restoreCodeSender user code

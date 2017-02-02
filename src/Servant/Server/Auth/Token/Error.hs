@@ -24,14 +24,14 @@ import Servant.Server.Auth.Token.Config
 import qualified Data.ByteString.Lazy as BS
 
 -- | Prepare error response
-makeBody :: MonadReader (AuthConfig db) m => ServantErr -> m ServantErr
+makeBody :: MonadReader AuthConfig m => ServantErr -> m ServantErr
 makeBody e = do
   f <- asks servantErrorFormer
   return $ f e
 
 -- | Wrappers to throw corresponding servant errors
 throw400, throw401, throw404, throw409, throw500
-  :: (MonadError ServantErr m, MonadReader (AuthConfig db) m)
+  :: (MonadError ServantErr m, MonadReader AuthConfig m)
   => BS.ByteString -> m a
 throw400 t = throwError =<< makeBody err400 { errBody = t }
 throw401 t = throwError =<< makeBody err401 { errBody = t }

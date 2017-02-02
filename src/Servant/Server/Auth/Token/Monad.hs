@@ -8,7 +8,7 @@ Stability   : experimental
 Portability : Portable
 -}
 module Servant.Server.Auth.Token.Monad(
-    AuthHandler(..)
+    AuthHandler
   , require
   , getConfig
   , getsConfig
@@ -16,8 +16,8 @@ module Servant.Server.Auth.Token.Monad(
   , module Reexport
   ) where
 
-import Control.Monad.Except                 (ExceptT, MonadError)
-import Control.Monad.Reader                 (MonadIO, MonadReader, ReaderT, ask, asks)
+import Control.Monad.Except                 (MonadError)
+import Control.Monad.Reader                 (MonadIO, MonadReader, ask, asks)
 import Data.Monoid                          ((<>))
 import Servant
 
@@ -25,35 +25,27 @@ import qualified Data.ByteString.Lazy as BS
 
 import Servant.Server.Auth.Token.Config
 import Servant.Server.Auth.Token.Error as Reexport
+import Servant.Server.Auth.Token.Model
 
--- | This type represents the effects we want to have for our application.
--- We wrap the standard Servant monad with 'ReaderT Config', which gives us
--- access to the application configuration using the 'MonadReader'
--- interface's 'ask' function.
---
--- By encapsulating the effects in our newtype, we can add layers to the
--- monad stack without having to modify code that uses the current layout.
-newtype AuthHandler db a = AuthHandler {
-    runAuthHandler :: ReaderT (AuthConfig db) (ExceptT ServantErr IO) a
-  } deriving ( Functor, Applicative, Monad, MonadReader (AuthConfig db),
-               MonadError ServantErr, MonadIO)
+-- | Context that is needed to run the auth server
+type AuthHandler m = (MonadReader AuthConfig m, MonadError ServantErr m, MonadIO m, HasStorage m)
 
 -- | If the value is 'Nothing', throw 400 response
-require :: BS.ByteString -> Maybe a -> AuthHandler db a
+require :: AuthHandler m => BS.ByteString -> Maybe a -> m a
 require info Nothing = throw400 $ info <> " is required"
 require _ (Just a) = return a
 
 -- | Getting config from global state
-getConfig :: AuthHandler db (AuthConfig db)
+getConfig :: AuthHandler m => m AuthConfig
 getConfig = ask
 
 -- | Getting config part from global state
-getsConfig :: (AuthConfig db -> a) -> AuthHandler db a
+getsConfig :: AuthHandler m => (AuthConfig -> a) -> m a
 getsConfig = asks
 
 -- | Run RDBMS operation and throw 404 (not found) error if
 -- the second arg returns 'Nothing'
-guard404 :: BS.ByteString -> AuthHandler db (Maybe a) -> AuthHandler db a
+guard404 :: AuthHandler m => BS.ByteString -> m (Maybe a) -> m a
 guard404 info ma = do
   a <- ma
   case a of

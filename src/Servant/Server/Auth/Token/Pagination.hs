@@ -19,10 +19,11 @@ import Servant.Server.Auth.Token.Monad
 import Servant.API.Auth.Token.Pagination
 
 -- | Helper that implements pagination logic
-pagination :: Maybe Page -- ^ Parameter of page
+pagination :: AuthHandler m
+  => Maybe Page -- ^ Parameter of page
   -> Maybe PageSize -- ^ Parameter of page size
-  -> (Page -> PageSize -> AuthHandler db a) -- ^ Handler
-  -> AuthHandler db a
+  -> (Page -> PageSize -> m a) -- ^ Handler
+  -> m a
 pagination pageParam pageSizeParam f = do
   ps <- getsConfig defaultPageSize
   let page = fromMaybe 0 pageParam

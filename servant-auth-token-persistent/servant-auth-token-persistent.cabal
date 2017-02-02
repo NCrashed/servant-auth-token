@@ -1,5 +1,5 @@
 name:                servant-auth-token-persistent
-version:             0.3.2.0
+version:             0.4.0.0
 synopsis:            Persistent backend for servant-auth-token server
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme
@@ -31,7 +31,7 @@ library
     , persistent              >= 2.2    && < 2.7
     , persistent-postgresql   >= 2.2    && < 2.7
     , persistent-template     >= 2.1    && < 2.7
-    , servant-auth-token      >= 0.3    && < 0.4
+    , servant-auth-token      >= 0.4    && < 0.5
     , servant-auth-token-api  >= 0.3.1  && < 0.4
     , servant-server          >= 0.7    && < 0.9
     , text                    >= 1.2    && < 1.3

@@ -22,12 +22,10 @@ import Servant.Server
 import Servant.API.Auth.Token
 
 -- | Configuration specific for authorisation system
-data AuthConfig db = AuthConfig {
-  -- | Get storage that is used to run DB operations
-    getDB :: !db
+data AuthConfig = AuthConfig {
   -- | For authorisation, defines amounts of seconds
   -- when token becomes invalid.
-  , defaultExpire :: !NominalDiffTime
+    defaultExpire :: !NominalDiffTime
   -- | For password restore, defines amounts of seconds
   -- when restore code becomes invalid.
   , restoreExpire :: !NominalDiffTime
@@ -84,10 +82,9 @@ data AuthConfig db = AuthConfig {
   }
 
 -- | Default configuration for authorisation server
-defaultAuthConfig :: db -> AuthConfig db
-defaultAuthConfig db = AuthConfig {
-    getDB = db
-  , defaultExpire = fromIntegral (600 :: Int)
+defaultAuthConfig :: AuthConfig
+defaultAuthConfig = AuthConfig {
+    defaultExpire = fromIntegral (600 :: Int)
   , restoreExpire = fromIntegral (3*24*3600 :: Int) -- 3 days
   , restoreCodeSender = const $ const $ return ()
   , restoreCodeGenerator = uuidCodeGenerate
