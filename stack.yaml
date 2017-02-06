@@ -37,6 +37,7 @@ resolver: lts-7.16
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - '.'
+- 'servant-auth-token-acid'
 - 'servant-auth-token-persistent'
 - 'example/persistent'
 # - location:
