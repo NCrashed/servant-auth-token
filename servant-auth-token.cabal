@@ -13,6 +13,26 @@ build-type:          Simple
 extra-source-files:
   README.md
   CHANGELOG.md
+  stack.yaml
+  example/acid/src/API.hs
+  example/acid/src/Config.hs
+  example/acid/src/DB.hs
+  example/acid/src/Main.hs
+  example/acid/src/Monad.hs
+  example/acid/src/Server.hs
+  example/acid/LICENSE
+  example/acid/Setup.hs
+  example/acid/config.yaml
+  example/acid/servant-auth-token-example-acid.cabal
+  example/persistent/src/API.hs
+  example/persistent/src/Config.hs
+  example/persistent/src/Main.hs
+  example/persistent/src/Monad.hs
+  example/persistent/src/Server.hs
+  example/persistent/LICENSE
+  example/persistent/Setup.hs
+  example/persistent/config.yaml
+  example/persistent/servant-auth-token-example-persistent.cabal
 cabal-version:       >=1.10
 
 library

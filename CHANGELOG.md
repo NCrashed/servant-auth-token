@@ -1,3 +1,8 @@
+0.4.0.0
+=======
+
+* Abstract over storage: persistent and acid-state backends.
+
 0.3.2.0
 =======
 
