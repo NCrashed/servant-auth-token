@@ -2,45 +2,19 @@
 
 [![Build Status](https://travis-ci.org/NCrashed/servant-auth-token.svg?branch=master)](https://travis-ci.org/NCrashed/servant-auth-token)
 
-The repo contains server implementation of [servant-auth-toke-api](https://github.com/NCrashed/servant-auth-token-api).
+The repo contains server implementation of [servant-auth-token-api](https://github.com/NCrashed/servant-auth-token-api).
 
 # How to add to your server
 
-To use the server as constituent part, you need to provide customised 'AuthConfig' for 
-'authServer' function and implement 'AuthMonad' instance for your handler monad.
+At the moment you have two options for backend storage:
 
-``` haskell
-import Servant.Server.Auth.Token as Auth
+- [persistent backend]() - [persistent](https://hackage.haskell.org/package/persistent) backend, simple to integrate with your app.
 
--- | Example of user side configuration
-data Config = Config {
-  -- | Authorisation specific configuration
-  authConfig :: AuthConfig
-  -- other fields
-  -- ...
-}
+- [acid-state backend]() - [acid-state](https://hackage.haskell.org/package/acid-state) backend is light solution for in memory storage, but it is more difficult to integrate it with your app.
 
--- | Example of user side handler monad
-newtype App a = App { 
-    runApp :: ReaderT Config (ExceptT ServantErr IO) a
-  } deriving ( Functor, Applicative, Monad, MonadReader Config,
-               MonadError ServantErr, MonadIO)
+- Possible candidates for other storage backends: VCache, leveldb, JSON file storage. To see how to implement them, see [HasStorage](https://github.com/NCrashed/servant-auth-token/blob/master/src/Servant/Server/Auth/Token/Model.hs#L220) type class.
 
--- | Now you can use authorisation API in your handler
-instance AuthMonad App where 
-  getAuthConfig = asks authConfig
-  liftAuthAction = App . lift
-
--- | Include auth 'migrateAll' function into your migration code
-doMigrations :: SqlPersistT IO ()
-doMigrations = runMigrationUnsafe $ do 
-  migrateAll -- other user migrations
-  Auth.migrateAll -- creation of authorisation entities
-  -- optional creation of default admin if db is empty
-  ensureAdmin 17 "admin" "123456" "admin@localhost" 
-```
-
-Now you can use 'guardAuthToken' to check authorisation headers in endpoints of your server:
+Now you can use 'guardAuthToken' to check authorization headers in endpoints of your server:
 
 ``` haskell
 -- | Read a single customer from DB
@@ -48,6 +22,6 @@ customerGet :: CustomerId -- ^ Customer unique id
   -> MToken '["customer-read"] -- ^ Required permissions for auth token
   -> App Customer -- ^ Customer data
 customerGet i token = do
-  guardAuthToken token 
-  runDB404 "customer" $ getCustomer i 
+  guardAuthToken token
+  runDB404 "customer" $ getCustomer i
 ```

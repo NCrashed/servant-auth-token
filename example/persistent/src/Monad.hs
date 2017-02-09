@@ -39,13 +39,17 @@ data ServerEnv = ServerEnv {
 -- | Create new server environment
 newServerEnv :: MonadIO m => ServerConfig -> m ServerEnv
 newServerEnv cfg = do
+  let authConfig = defaultAuthConfig
   pool <- liftIO $ do
     pool <- createPool cfg
-    runSqlPool (runMigration S.migrateAll) pool
+    -- run migrations
+    flip runSqlPool pool $ runMigration S.migrateAll
+    -- create default admin if missing one
+    _ <- runPersistentBackendT authConfig pool $ ensureAdmin 17 "admin" "123456" "admin@localhost"
     return pool
   let env = ServerEnv {
         envConfig = cfg
-      , envAuthConfig = defaultAuthConfig
+      , envAuthConfig = authConfig
       , envPool = pool
       }
   return env

@@ -40,10 +40,13 @@ data ServerEnv = ServerEnv {
 -- | Create new server environment
 newServerEnv :: MonadIO m => ServerConfig -> m ServerEnv
 newServerEnv cfg = do
+  let authConfig = defaultAuthConfig
   db <- liftIO $ openLocalStateFrom (unpack $ serverDbPath cfg) newDB
+  -- ensure default admin if missing one
+  _ <- runAcidBackendT authConfig db $ ensureAdmin 17 "admin" "123456" "admin@localhost"
   let env = ServerEnv {
         envConfig = cfg
-      , envAuthConfig = defaultAuthConfig
+      , envAuthConfig = authConfig
       , envDB = db
       }
   return env
