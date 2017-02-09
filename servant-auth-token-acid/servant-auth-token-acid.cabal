@@ -34,6 +34,7 @@ library
     , servant-auth-token      >= 0.4    && < 0.5
     , servant-auth-token-api  >= 0.4    && < 0.5
     , servant-server          >= 0.9    && < 0.10
+    , template-haskell        >= 2.11   && < 2.12
     , text                    >= 1.2    && < 1.3
     , time                    >= 1.5    && < 1.7
     , transformers            >= 0.4    && < 0.6
