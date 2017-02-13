@@ -1,3 +1,8 @@
+0.4.1.0
+=======
+
+* Remove persistent dependencies from abstract package.
+
 0.4.0.0
 =======
 
