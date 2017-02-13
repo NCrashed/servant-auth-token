@@ -109,9 +109,15 @@ class HasModelRead a where
 class HasModelRead a => HasModelWrite a where
   putModel :: a -> Model -> a
 
--- | The end user should inline this TH in his code
-makeModelAcidic :: Name -> DecsQ
-makeModelAcidic globalStateName = makeAcidic globalStateName [
+-- | List of queries of the backend. Can be used if you want additional queries alongside
+-- with the auth ones.
+--
+-- Usage:
+-- @
+-- makeAcidic ''Model (acidQueries ++ [{- your queries herer-}])
+-- @
+acidQueries :: [Name]
+acidQueries = [
     mkName "getUserImpl"
   , mkName "getUserImplByLogin"
   , mkName "listUsersPaged"
@@ -151,6 +157,10 @@ makeModelAcidic globalStateName = makeAcidic globalStateName [
   , mkName "insertAuthToken"
   , mkName "replaceAuthToken"
   ]
+
+-- | The end user should inline this TH in his code
+makeModelAcidic :: Name -> DecsQ
+makeModelAcidic globalStateName = makeAcidic globalStateName acidQueries
 
 instance HasModelRead Model where
   askModel = id
