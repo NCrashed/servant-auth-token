@@ -56,10 +56,12 @@ library
     QuasiQuotes
     RecordWildCards
     ScopedTypeVariables
+    StandaloneDeriving
     TemplateHaskell
     TupleSections
     TypeFamilies
     TypeOperators
+    UndecidableInstances
 
 source-repository head
   type:     git

@@ -1,5 +1,5 @@
 name:                servant-auth-token-example-acid
-version:             0.4.0.0
+version:             0.4.0.1
 synopsis:            Example server for token auth for acid-state backend
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme
@@ -25,7 +25,7 @@ executable servant-auth-token-example-acid
   build-depends:
       base                          >= 4.7      && < 5
     , acid-state                    >= 0.14     && < 0.15
-    , aeson                         >= 0.11     && < 0.12
+    , aeson                         >= 0.11     && < 1.1
     , aeson-injector                >= 1.0      && < 1.1
     , bytestring                    >= 0.10     && < 0.11
     , exceptions                    >= 0.8      && < 0.9
@@ -33,7 +33,7 @@ executable servant-auth-token-example-acid
     , monad-control                 >= 1.0      && < 1.1
     , monad-logger                  >= 0.3      && < 0.4
     , mtl                           >= 2.2      && < 2.3
-    , optparse-applicative          >= 0.12     && < 0.13
+    , optparse-applicative          >= 0.12     && < 0.14
     , safecopy                      >= 0.9      && < 0.10
     , servant                       >= 0.9      && < 0.10
     , servant-auth-token            >= 0.4      && < 0.5
