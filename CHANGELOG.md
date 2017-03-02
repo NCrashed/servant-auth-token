@@ -1,3 +1,9 @@
+0.4.1.1
+=======
+
+* Relax `aeson` and `opt-parse-applicative` bounds.
+* Add `monad-control` instances.
+
 0.4.1.0
 =======
 
