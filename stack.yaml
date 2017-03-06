@@ -42,11 +42,12 @@ packages:
 - 'servant-auth-token-leveldb'
 - 'example/acid'
 - 'example/persistent'
+- 'example/leveldb'
 # - location:
 #     git: https://github.com/NCrashed/servant-auth-token-api.git
 #     commit: d011f7bfecd18d07ff67ce9f67f8741e110a2719
 #   extra-dep: true
-- '../servant-auth-token-api'
+# - '../servant-auth-token-api'
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
@@ -57,7 +58,7 @@ extra-deps:
 - natural-transformation-0.4
 - safecopy-store-0.9.2
 - servant-0.9
-- servant-auth-token-api-0.3.1.0
+- servant-auth-token-api-0.4.0.1
 - servant-docs-0.9
 - servant-server-0.9
 - store-0.3.1

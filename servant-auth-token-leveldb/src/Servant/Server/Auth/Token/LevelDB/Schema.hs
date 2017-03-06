@@ -146,9 +146,9 @@ instance Key UserSingleUseCodeId UserSingleUseCode
 data LevelDBEnv = LevelDBEnv !DB !ReadOptions !WriteOptions !RLock
 
 -- | Make new environment for execution of LevelDB operations
-newLevelDBEnv :: DB -> ReadOptions -> WriteOptions -> IO LevelDBEnv
+newLevelDBEnv :: MonadIO m => DB -> ReadOptions -> WriteOptions -> m LevelDBEnv
 newLevelDBEnv db rops wopts = do
-  rlock <- new
+  rlock <- liftIO new
   return $ LevelDBEnv db rops wopts rlock
 
 -- | Load object by id from leveldb
