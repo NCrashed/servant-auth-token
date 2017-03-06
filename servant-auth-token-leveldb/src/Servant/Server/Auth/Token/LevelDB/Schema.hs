@@ -145,6 +145,12 @@ instance Key UserSingleUseCodeId UserSingleUseCode
 -- | Holds together db reference and options for read/write and mutex
 data LevelDBEnv = LevelDBEnv !DB !ReadOptions !WriteOptions !RLock
 
+-- | Make new environment for execution of LevelDB operations
+newLevelDBEnv :: DB -> ReadOptions -> WriteOptions -> IO LevelDBEnv
+newLevelDBEnv db rops wopts = do
+  rlock <- new
+  return $ LevelDBEnv db rops wopts rlock
+
 -- | Load object by id from leveldb
 load :: (MonadResource m, Key i a, SafeCopy a) => LevelDBEnv -> i -> m (Maybe a)
 load (LevelDBEnv db ropts _ _) i = do
