@@ -354,8 +354,8 @@ selectUserImplGroups :: MonadResource m => UserImplId -> LevelDBEnv -> m [WithId
 selectUserImplGroups i = selectRecords modelAuthUserGroupUsers $ \_ g -> authUserGroupUsersUser g == i
 
 -- | Remove user from all groups
-clearUserImplGroups :: (MonadResource m, MonadMask m) => LevelDBEnv -> UserImplId -> m ()
-clearUserImplGroups db i = do
+clearUserImplGroups :: (MonadResource m, MonadMask m) => UserImplId -> LevelDBEnv -> m ()
+clearUserImplGroups i db = do
   is <- fmap withId <$> selectUserImplGroups i db
   deleteRecords modelAuthUserGroupUsers is db
 

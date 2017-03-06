@@ -31,6 +31,7 @@ library
     , leveldb-haskell         >= 0.6    && < 0.7
     , monad-control           >= 1.0    && < 1.1
     , mtl                     >= 2.2    && < 2.3
+    , resourcet               >= 1.1    && < 1.2
     , safe                    >= 0.3    && < 0.4
     , safecopy-store          >= 0.9    && < 0.10
     , servant-auth-token      >= 0.4    && < 0.5
