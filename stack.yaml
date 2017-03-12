@@ -58,7 +58,7 @@ extra-deps:
 - natural-transformation-0.4
 - safecopy-store-0.9.2
 - servant-0.9
-- servant-auth-token-api-0.4.0.1
+- servant-auth-token-api-0.4.1.0
 - servant-docs-0.9
 - servant-server-0.9
 - store-0.3.1

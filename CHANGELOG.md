@@ -1,3 +1,8 @@
+0.4.2.0
+=======
+
+* Add implementation for `AuthCheckPermissionsMethod` and `AuthGetUserIdMethod` endpoints.
+
 0.4.1.1
 =======
 

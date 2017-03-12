@@ -57,6 +57,8 @@ module Servant.Server.Auth.Token(
   , authGroupPatch
   , authGroupDelete
   , authGroupList
+  , authCheckPermissionsMethod
+  , authGetUserIdMethod
   -- * Low-level API
   , getAuthToken
   ) where
@@ -109,6 +111,8 @@ authServer =
   :<|> authGroupPatch
   :<|> authGroupDelete
   :<|> authGroupList
+  :<|> authCheckPermissionsMethod
+  :<|> authGetUserIdMethod
 
 -- | Implementation of "signin" method
 authSignin :: AuthHandler m
@@ -539,3 +543,21 @@ authGroupList mp msize token = do
         pagedListItems = catMaybes groups
       , pagedListPages = ceiling $ (fromIntegral total :: Double) / fromIntegral size
       }
+
+-- | Check that the token has required permissions and return 'False' if it doesn't.
+authCheckPermissionsMethod :: AuthHandler m
+  => MToken' '["auth-check"] -- ^ Authorisation header with token
+  -> OnlyField "permissions" [Permission] -- ^ Body with permissions to check
+  -> m Bool -- ^ 'True' if all permissions are OK, 'False' if some permissions are not set for token and 401 error if the token doesn't have 'auth-check' permission.
+authCheckPermissionsMethod token (OnlyField perms) = do
+  guardAuthToken token
+  let check = const True <$> guardAuthToken' (unToken <$> token) perms
+  check `catchError` (\e -> if errHTTPCode e == 401 then pure True else throwError e)
+
+-- | Get user ID for the owner of the speified token.
+authGetUserIdMethod :: AuthHandler m
+  => MToken' '["auth-userid"] -- ^ Authorisation header with token
+  -> m (OnlyId UserId)
+authGetUserIdMethod token = do
+  guardAuthToken token
+  OnlyField . respUserId <$> authToken (downgradeToken token)
