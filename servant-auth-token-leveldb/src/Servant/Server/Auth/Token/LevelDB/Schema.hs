@@ -20,7 +20,6 @@ import Data.Store
 import Data.Text (Text)
 import Data.Time
 import Data.Typeable hiding (Proxy)
-import Data.Vector (Vector)
 import Database.LevelDB
 import Safe
 
@@ -49,7 +48,6 @@ import Servant.Server.Auth.Token.Model(
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
-import qualified Data.Vector as V
 
 -- | ID of global model index
 newtype ModelId = ModelId { unModelId :: Int64 }
@@ -127,7 +125,7 @@ class Key i a | i -> a, a -> i where
 
   default encodeKey :: (SafeCopy i, Typeable i) => i -> ByteString
   encodeKey i = runEncode $ do
-    pokeE tname
+    _ <- pokeE tname
     safePut i
     where
       tname = show $ typeRep (Proxy :: Proxy i)
@@ -346,7 +344,7 @@ getFirstUserByPerm perm db = do
       mp <- load db i
       case mp of
         Just p | userPermPermission p == perm -> fmap (WithField (userPermUser p)) <$> load db (userPermUser p)
-        Nothing -> pure Nothing
+        _ -> pure Nothing
   F.foldrM go Nothing ps
 
 -- | Select user groups and sort them by ascending name
@@ -513,8 +511,8 @@ deriveSafeCopy 0 'base ''Model
 
 instance (SafeCopy k, SafeCopy v) => SafeCopy (WithField i k v) where
   putCopy a@(WithField k v) = contain $ do
-    safePut k
-    safePut v
+    _ <- safePut k
+    _ <- safePut v
     return a
   getCopy = contain $ WithField
     <$> safeGet

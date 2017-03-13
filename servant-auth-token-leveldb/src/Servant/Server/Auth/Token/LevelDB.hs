@@ -11,7 +11,6 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import Control.Monad.Trans.Resource
-import Database.LevelDB
 import Servant.Server
 import Servant.Server.Auth.Token.Config
 import Servant.Server.Auth.Token.LevelDB.Schema (LevelDBEnv, newLevelDBEnv)

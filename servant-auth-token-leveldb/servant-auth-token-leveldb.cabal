@@ -1,5 +1,5 @@
 name:                servant-auth-token-leveldb
-version:             0.4.1.1
+version:             0.4.1.2
 synopsis:            Leveldb backend for servant-auth-token server
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme

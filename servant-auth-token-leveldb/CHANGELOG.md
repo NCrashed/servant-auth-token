@@ -1,3 +1,8 @@
+0.4.1.2
+=======
+
+* Bug with not total case coverage is fixed.
+
 0.4.1.1
 =======
 
