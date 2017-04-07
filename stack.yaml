@@ -47,7 +47,7 @@ packages:
 #     git: https://github.com/NCrashed/servant-auth-token-api.git
 #     commit: d011f7bfecd18d07ff67ce9f67f8741e110a2719
 #   extra-dep: true
-#- '../servant-auth-token-api'
+# - '../servant-auth-token-api'
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)

@@ -62,6 +62,9 @@ module Servant.Server.Auth.Token(
   , authFindUserByLogin
   -- * Low-level API
   , getAuthToken
+  , hashPassword
+  , setUserPasswordHash
+  , ensureAdminHash
   ) where
 
 import Control.Monad
@@ -71,6 +74,7 @@ import Data.Aeson.Unit
 import Data.Aeson.WithField
 import Data.Maybe
 import Data.Monoid
+import Data.Text (Text)
 import Data.Text.Encoding
 import Data.Time.Clock
 import Data.UUID
@@ -480,6 +484,15 @@ setUserPassword pass user = do
   strength <- getsConfig passwordsStrength
   setUserPassword' strength pass user
 
+-- | Update password hash of user. Can be used to set direct hash for user password
+-- when it is taken from config file.
+setUserPasswordHash :: AuthHandler m => Text -> UserId -> m ()
+setUserPasswordHash hashedPassword i = do
+  let i' = toKey i
+  user <- guard404 "user" $ getUserImpl i'
+  let user' = user { userImplPassword = hashedPassword }
+  replaceUserImpl i' user'
+
 -- | Getting info about user group, requires 'authInfoPerm' for token
 authGroupGet :: AuthHandler m
   => UserGroupId
@@ -575,3 +588,21 @@ authFindUserByLogin mlogin token = do
   guardAuthToken token
   userWithId <- guard404 "user" $ getUserImplByLogin login
   makeUserInfo userWithId
+
+-- | Generate hash from given password and return it as text. May be useful if
+-- you don't like storing unencrypt passwords in config files.
+hashPassword :: AuthHandler m => Password -> m Text
+hashPassword pass = do
+  strength <- getsConfig passwordsStrength
+  hashed <- liftIO $ makePassword (passToByteString pass) strength
+  return $ byteStringToPass hashed
+
+-- | Ensures that DB has at least one admin, if not, creates a new one
+-- with specified info and direct password hash. May be useful if
+-- you don't like storing unencrypt passwords in config files.
+ensureAdminHash :: AuthHandler m => Int -> Login -> Text -> Email -> m ()
+ensureAdminHash strength login passHash email = do
+  madmin <- getFirstUserByPerm adminPerm
+  whenNothing madmin $ do
+    i <- createAdmin strength login "" email
+    setUserPasswordHash passHash $ fromKey i

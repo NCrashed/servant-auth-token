@@ -2,6 +2,8 @@
 =======
 
 * Implementation for `AuthFindUserByLogin` endpoint.
+* Feature to manipulate with hashes of passwords. For instance, now you can store
+hashed admin password in config.
 
 0.4.2.0
 =======
