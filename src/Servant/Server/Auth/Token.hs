@@ -59,6 +59,7 @@ module Servant.Server.Auth.Token(
   , authGroupList
   , authCheckPermissionsMethod
   , authGetUserIdMethod
+  , authFindUserByLogin
   -- * Low-level API
   , getAuthToken
   ) where
@@ -113,6 +114,7 @@ authServer =
   :<|> authGroupList
   :<|> authCheckPermissionsMethod
   :<|> authGetUserIdMethod
+  :<|> authFindUserByLogin
 
 -- | Implementation of "signin" method
 authSignin :: AuthHandler m
@@ -561,3 +563,15 @@ authGetUserIdMethod :: AuthHandler m
 authGetUserIdMethod token = do
   guardAuthToken token
   OnlyField . respUserId <$> authToken (downgradeToken token)
+
+-- | Implementation of 'AuthFindUserByLogin'. Find user by login, throw 404 error
+-- if cannot find user by such login.
+authFindUserByLogin :: AuthHandler m
+  => Maybe Login -- ^ Login, 'Nothing' will cause 400 error.
+  -> MToken' '["auth-info"]
+  -> m RespUserInfo
+authFindUserByLogin mlogin token = do
+  login <- require "login" mlogin
+  guardAuthToken token
+  userWithId <- guard404 "user" $ getUserImplByLogin login
+  makeUserInfo userWithId

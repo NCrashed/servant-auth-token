@@ -1,5 +1,5 @@
 name:                servant-auth-token
-version:             0.4.2.0
+version:             0.4.3.0
 synopsis:            Servant based API and server for token based authorisation
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme
@@ -55,7 +55,7 @@ library
     , containers              >= 0.5    && < 0.6
     , mtl                     >= 2.2    && < 2.3
     , pwstore-fast            >= 2.4    && < 2.5
-    , servant-auth-token-api  >= 0.4    && < 0.5
+    , servant-auth-token-api  >= 0.4.2  && < 0.5
     , servant-server          >= 0.9    && < 0.10
     , text                    >= 1.2    && < 1.3
     , time                    >= 1.5    && < 1.7

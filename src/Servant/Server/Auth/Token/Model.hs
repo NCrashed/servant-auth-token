@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes                #-}
-{-# LANGUAGE TemplateHaskell            #-}
 {-|
 Module      : Servant.Server.Auth.Token.Model
 Description : Internal operations with RDBMS
@@ -58,6 +56,8 @@ module Servant.Server.Auth.Token.Model(
   , updateUserGroup
   , deleteUserGroup
   , patchUserGroup
+  -- * Low-level
+  , makeUserInfo
   ) where
 
 import Control.Monad
