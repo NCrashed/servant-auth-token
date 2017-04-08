@@ -1,3 +1,8 @@
+0.4.4.0
+=======
+
+* Add `signinByHashUnsafe` for internal usage. 
+
 0.4.3.0
 =======
 

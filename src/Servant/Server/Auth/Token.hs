@@ -65,6 +65,7 @@ module Servant.Server.Auth.Token(
   , hashPassword
   , setUserPasswordHash
   , ensureAdminHash
+  , signinByHashUnsafe
   ) where
 
 import Control.Monad
@@ -606,3 +607,27 @@ ensureAdminHash strength login passHash email = do
   whenNothing madmin $ do
     i <- createAdmin strength login "" email
     setUserPasswordHash passHash $ fromKey i
+
+-- | If you use password hash in configs, you cannot use them in signin
+-- method. This helper allows to get token by password hash and the function
+-- is not available for remote call (no endpoint).
+--
+-- Throws 401 if cannot find user or authorisation is failed.
+--
+-- WARNING: Do not expose the function to end user, never!
+signinByHashUnsafe :: AuthHandler m => Login -- ^ User login
+  -> Text -- ^ Hash of admin password
+  -> Maybe Seconds -- ^ Expire
+  -> m SimpleToken
+signinByHashUnsafe login pass mexpire = do
+  WithField uid UserImpl{..} <- guardLogin login pass
+  getAuthToken uid mexpire
+  where
+  guardLogin login pass = do -- check login and password, return passed user
+    muser <- getUserImplByLogin login
+    let err = throw401 "Cannot find user with given combination of login and pass"
+    case muser of
+      Nothing -> err
+      Just user@(WithField _ UserImpl{..}) -> if pass == userImplPassword
+        then return user
+        else err
