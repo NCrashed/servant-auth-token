@@ -1,7 +1,12 @@
+0.4.4.1
+=======
+
+* `persistent-postgresql` is not actually used
+
 0.4.4.0
 =======
 
-* Add `signinByHashUnsafe` for internal usage. 
+* Add `signinByHashUnsafe` for internal usage.
 
 0.4.3.0
 =======
