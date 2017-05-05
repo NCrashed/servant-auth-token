@@ -1,3 +1,5 @@
+{-# LANGUAGE DefaultSignatures #-}
+
 {-|
 Module      : Servant.Server.Auth.Token.Config
 Description : Configuration of auth server
@@ -13,7 +15,17 @@ module Servant.Server.Auth.Token.Config(
   , defaultAuthConfig
   ) where
 
+import Control.Monad.Cont (ContT)
+import Control.Monad.Except (ExceptT)
 import Control.Monad.IO.Class
+import Control.Monad.Reader (ReaderT)
+import qualified Control.Monad.RWS.Lazy as LRWS
+import qualified Control.Monad.RWS.Strict as SRWS
+import qualified Control.Monad.State.Lazy as LS
+import qualified Control.Monad.State.Strict as SS
+import qualified Control.Monad.Writer.Lazy as LW
+import qualified Control.Monad.Writer.Strict as SW
+import Control.Monad.Trans.Class (MonadTrans(lift))
 import Data.Text (Text)
 import Data.Time
 import Data.UUID
@@ -25,6 +37,18 @@ import Servant.API.Auth.Token
 -- | Monad that can read an auth config
 class Monad m => HasAuthConfig m where
   getAuthConfig :: m AuthConfig
+  default getAuthConfig :: (m ~ t n, MonadTrans t, HasAuthConfig n) => m AuthConfig
+  getAuthConfig = lift getAuthConfig
+
+instance HasAuthConfig m => HasAuthConfig (ContT r m)
+instance HasAuthConfig m => HasAuthConfig (ExceptT e m)
+instance HasAuthConfig m => HasAuthConfig (ReaderT r m)
+instance (HasAuthConfig m, Monoid w) => HasAuthConfig (LRWS.RWST r w s m)
+instance (HasAuthConfig m, Monoid w) => HasAuthConfig (SRWS.RWST r w s m)
+instance HasAuthConfig m => HasAuthConfig (LS.StateT s m)
+instance HasAuthConfig m => HasAuthConfig (SS.StateT s m)
+instance (HasAuthConfig m, Monoid w) => HasAuthConfig (LW.WriterT w m)
+instance (HasAuthConfig m, Monoid w) => HasAuthConfig (SW.WriterT w m)
 
 -- | Configuration specific for authorisation system
 data AuthConfig = AuthConfig {
