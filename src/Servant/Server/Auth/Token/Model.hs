@@ -1,3 +1,4 @@
+{-# LANGUAGE DefaultSignatures #-}
 {-|
 Module      : Servant.Server.Auth.Token.Model
 Description : Internal operations with RDBMS
@@ -61,7 +62,17 @@ module Servant.Server.Auth.Token.Model(
   ) where
 
 import Control.Monad
+import Control.Monad.Cont (ContT)
+import Control.Monad.Except (ExceptT)
 import Control.Monad.IO.Class
+import Control.Monad.Reader (ReaderT)
+import qualified Control.Monad.RWS.Lazy as LRWS
+import qualified Control.Monad.RWS.Strict as SRWS
+import qualified Control.Monad.State.Lazy as LS
+import qualified Control.Monad.State.Strict as SS
+import qualified Control.Monad.Writer.Lazy as LW
+import qualified Control.Monad.Writer.Strict as SW
+import Control.Monad.Trans.Class (MonadTrans(lift))
 import Crypto.PasswordStore
 import Data.Aeson.WithField
 import Data.Int
@@ -220,80 +231,203 @@ data AuthUserGroupPerms = AuthUserGroupPerms {
 class MonadIO m => HasStorage m where
   -- | Getting user from storage
   getUserImpl :: UserImplId -> m (Maybe UserImpl)
+  default getUserImpl :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> m (Maybe UserImpl)
+  getUserImpl = lift . getUserImpl
+
   -- | Getting user from storage by login
   getUserImplByLogin :: Login -> m (Maybe (WithId UserImplId UserImpl))
+  default getUserImplByLogin :: (m ~ t n, MonadTrans t, HasStorage n) => Login -> m (Maybe (WithId UserImplId UserImpl))
+  getUserImplByLogin = lift . getUserImplByLogin
+
   -- | Get paged list of users and total count of users
   listUsersPaged :: Page -> PageSize -> m ([WithId UserImplId UserImpl], Word)
+  default listUsersPaged :: (m ~ t n, MonadTrans t, HasStorage n) => Page -> PageSize -> m ([WithId UserImplId UserImpl], Word)
+  listUsersPaged = (lift .) . listUsersPaged
+
   -- | Get user permissions, ascending by tag
   getUserImplPermissions :: UserImplId -> m [WithId UserPermId UserPerm]
+  default getUserImplPermissions :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> m [WithId UserPermId UserPerm]
+  getUserImplPermissions = lift . getUserImplPermissions
+
   -- | Delete user permissions
   deleteUserPermissions :: UserImplId -> m ()
+  default deleteUserPermissions :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> m ()
+  deleteUserPermissions = lift . deleteUserPermissions
+
   -- | Insertion of new user permission
   insertUserPerm :: UserPerm -> m UserPermId
+  default insertUserPerm :: (m ~ t n, MonadTrans t, HasStorage n) => UserPerm -> m UserPermId
+  insertUserPerm = lift . insertUserPerm
+
   -- | Insertion of new user
   insertUserImpl :: UserImpl -> m UserImplId
+  default insertUserImpl :: (m ~ t n, MonadTrans t, HasStorage n) => UserImpl -> m UserImplId
+  insertUserImpl = lift . insertUserImpl
+
   -- | Replace user with new value
   replaceUserImpl :: UserImplId -> UserImpl -> m ()
+  default replaceUserImpl :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> UserImpl -> m ()
+  replaceUserImpl = (lift .) . replaceUserImpl
+
   -- | Delete user by id
   deleteUserImpl :: UserImplId -> m ()
+  default deleteUserImpl :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> m ()
+  deleteUserImpl = lift . deleteUserImpl
+
   -- | Check whether the user has particular permission
   hasPerm :: UserImplId -> Permission -> m Bool
+  default hasPerm :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> Permission -> m Bool
+  hasPerm = (lift .) . hasPerm
+
   -- | Get any user with given permission
   getFirstUserByPerm :: Permission -> m (Maybe (WithId UserImplId UserImpl))
+  default getFirstUserByPerm :: (m ~ t n, MonadTrans t, HasStorage n) => Permission -> m (Maybe (WithId UserImplId UserImpl))
+  getFirstUserByPerm = lift . getFirstUserByPerm
+
   -- | Select user groups and sort them by ascending name
   selectUserImplGroups :: UserImplId -> m [WithId AuthUserGroupUsersId AuthUserGroupUsers]
+  default selectUserImplGroups :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> m [WithId AuthUserGroupUsersId AuthUserGroupUsers]
+  selectUserImplGroups = lift . selectUserImplGroups
+
   -- | Remove user from all groups
   clearUserImplGroups :: UserImplId -> m ()
+  default clearUserImplGroups :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> m ()
+  clearUserImplGroups = lift . clearUserImplGroups
+
   -- | Add new user group
   insertAuthUserGroup :: AuthUserGroup -> m AuthUserGroupId
+  default insertAuthUserGroup :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroup -> m AuthUserGroupId
+  insertAuthUserGroup = lift . insertAuthUserGroup
+
   -- | Add user to given group
   insertAuthUserGroupUsers :: AuthUserGroupUsers -> m AuthUserGroupUsersId
+  default insertAuthUserGroupUsers :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupUsers -> m AuthUserGroupUsersId
+  insertAuthUserGroupUsers = lift . insertAuthUserGroupUsers
+
   -- | Add permission to given group
   insertAuthUserGroupPerms :: AuthUserGroupPerms -> m AuthUserGroupPermsId
+  default insertAuthUserGroupPerms :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupPerms -> m AuthUserGroupPermsId
+  insertAuthUserGroupPerms = lift . insertAuthUserGroupPerms
+
   -- | Find user group by id
   getAuthUserGroup :: AuthUserGroupId -> m (Maybe AuthUserGroup)
+  default getAuthUserGroup :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupId -> m (Maybe AuthUserGroup)
+  getAuthUserGroup = lift . getAuthUserGroup
+
   -- | Get list of permissions of given group
   listAuthUserGroupPermissions :: AuthUserGroupId -> m [WithId AuthUserGroupPermsId AuthUserGroupPerms]
+  default listAuthUserGroupPermissions :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupId -> m [WithId AuthUserGroupPermsId AuthUserGroupPerms]
+  listAuthUserGroupPermissions = lift . listAuthUserGroupPermissions
+
   -- | Get list of all users of the group
   listAuthUserGroupUsers :: AuthUserGroupId -> m [WithId AuthUserGroupUsersId AuthUserGroupUsers]
+  default listAuthUserGroupUsers :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupId -> m [WithId AuthUserGroupUsersId AuthUserGroupUsers]
+  listAuthUserGroupUsers = lift . listAuthUserGroupUsers
+
   -- | Replace record of user group
   replaceAuthUserGroup :: AuthUserGroupId -> AuthUserGroup -> m ()
+  default replaceAuthUserGroup :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupId -> AuthUserGroup -> m ()
+  replaceAuthUserGroup = (lift .) . replaceAuthUserGroup
+
   -- | Remove all users from group
   clearAuthUserGroupUsers :: AuthUserGroupId -> m ()
+  default clearAuthUserGroupUsers :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupId -> m ()
+  clearAuthUserGroupUsers = lift . clearAuthUserGroupUsers
+
   -- | Remove all permissions from group
   clearAuthUserGroupPerms :: AuthUserGroupId -> m ()
+  default clearAuthUserGroupPerms :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupId -> m ()
+  clearAuthUserGroupPerms = lift . clearAuthUserGroupPerms
+
   -- | Delete user group from storage
   deleteAuthUserGroup :: AuthUserGroupId -> m ()
+  default deleteAuthUserGroup :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupId -> m ()
+  deleteAuthUserGroup = lift . deleteAuthUserGroup
+
   -- | Get paged list of user groups with total count
   listGroupsPaged :: Page -> PageSize -> m ([WithId AuthUserGroupId AuthUserGroup], Word)
+  default listGroupsPaged :: (m ~ t n, MonadTrans t, HasStorage n) => Page -> PageSize -> m ([WithId AuthUserGroupId AuthUserGroup], Word)
+  listGroupsPaged = (lift .) . listGroupsPaged
+
   -- | Set group name
   setAuthUserGroupName :: AuthUserGroupId -> Text -> m ()
+  default setAuthUserGroupName :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupId -> Text -> m ()
+  setAuthUserGroupName = (lift .) . setAuthUserGroupName
+
   -- | Set group parent
   setAuthUserGroupParent :: AuthUserGroupId -> Maybe AuthUserGroupId -> m ()
+  default setAuthUserGroupParent :: (m ~ t n, MonadTrans t, HasStorage n) => AuthUserGroupId -> Maybe AuthUserGroupId -> m ()
+  setAuthUserGroupParent = (lift .) . setAuthUserGroupParent
+
   -- | Add new single use code
   insertSingleUseCode :: UserSingleUseCode -> m UserSingleUseCodeId
+  default insertSingleUseCode :: (m ~ t n, MonadTrans t, HasStorage n) => UserSingleUseCode -> m UserSingleUseCodeId
+  insertSingleUseCode = lift . insertSingleUseCode
+
   -- | Set usage time of the single use code
   setSingleUseCodeUsed :: UserSingleUseCodeId -> Maybe UTCTime -> m ()
+  default setSingleUseCodeUsed :: (m ~ t n, MonadTrans t, HasStorage n) => UserSingleUseCodeId -> Maybe UTCTime -> m ()
+  setSingleUseCodeUsed = (lift .) . setSingleUseCodeUsed
+
   -- | Find unused code for the user and expiration time greater than the given time
   getUnusedCode :: SingleUseCode -> UserImplId -> UTCTime -> m (Maybe (WithId UserSingleUseCodeId UserSingleUseCode))
+  default getUnusedCode :: (m ~ t n, MonadTrans t, HasStorage n) => SingleUseCode -> UserImplId -> UTCTime -> m (Maybe (WithId UserSingleUseCodeId UserSingleUseCode))
+  getUnusedCode suc = (lift .) . getUnusedCode suc
+
   -- | Invalidate all permament codes for user and set use time for them
   invalidatePermamentCodes :: UserImplId -> UTCTime -> m ()
+  default invalidatePermamentCodes :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> UTCTime -> m ()
+  invalidatePermamentCodes = (lift .) . invalidatePermamentCodes
+
   -- | Select last valid restoration code by the given current time
   selectLastRestoreCode :: UserImplId -> UTCTime -> m (Maybe (WithId UserRestoreId UserRestore))
+  default selectLastRestoreCode :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> UTCTime -> m (Maybe (WithId UserRestoreId UserRestore))
+  selectLastRestoreCode = (lift .) . selectLastRestoreCode
+
   -- | Insert new restore code
   insertUserRestore :: UserRestore -> m UserRestoreId
+  default insertUserRestore :: (m ~ t n, MonadTrans t, HasStorage n) => UserRestore -> m UserRestoreId
+  insertUserRestore = lift . insertUserRestore
+
   -- | Find unexpired by the time restore code
   findRestoreCode :: UserImplId -> RestoreCode -> UTCTime -> m (Maybe (WithId UserRestoreId UserRestore))
+  default findRestoreCode :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> RestoreCode -> UTCTime -> m (Maybe (WithId UserRestoreId UserRestore))
+  findRestoreCode uid = (lift .) . findRestoreCode uid
+
   -- | Replace restore code with new value
   replaceRestoreCode :: UserRestoreId -> UserRestore -> m ()
+  default replaceRestoreCode :: (m ~ t n, MonadTrans t, HasStorage n) => UserRestoreId -> UserRestore -> m ()
+  replaceRestoreCode = (lift .) . replaceRestoreCode
+
   -- | Find first non-expired by the time token for user
   findAuthToken :: UserImplId -> UTCTime -> m (Maybe (WithId AuthTokenId AuthToken))
+  default findAuthToken :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> UTCTime -> m (Maybe (WithId AuthTokenId AuthToken))
+  findAuthToken = (lift .) . findAuthToken
+
   -- | Find token by value
   findAuthTokenByValue :: SimpleToken -> m (Maybe (WithId AuthTokenId AuthToken))
+  default findAuthTokenByValue :: (m ~ t n, MonadTrans t, HasStorage n) => SimpleToken -> m (Maybe (WithId AuthTokenId AuthToken))
+  findAuthTokenByValue = lift . findAuthTokenByValue
+
   -- | Insert new token
   insertAuthToken :: AuthToken -> m AuthTokenId
+  default insertAuthToken :: (m ~ t n, MonadTrans t, HasStorage n) => AuthToken -> m AuthTokenId
+  insertAuthToken = lift . insertAuthToken
+
   -- | Replace auth token with new value
   replaceAuthToken :: AuthTokenId -> AuthToken -> m ()
+  default replaceAuthToken :: (m ~ t n, MonadTrans t, HasStorage n) => AuthTokenId -> AuthToken -> m ()
+  replaceAuthToken = (lift .) . replaceAuthToken
+
+instance HasStorage m => HasStorage (ContT r m)
+instance HasStorage m => HasStorage (ExceptT e m)
+instance HasStorage m => HasStorage (ReaderT r m)
+instance (HasStorage m, Monoid w) => HasStorage (LRWS.RWST r w s m)
+instance (HasStorage m, Monoid w) => HasStorage (SRWS.RWST r w s m)
+instance HasStorage m => HasStorage (LS.StateT s m)
+instance HasStorage m => HasStorage (SS.StateT s m)
+instance (HasStorage m, Monoid w) => HasStorage (LW.WriterT w m)
+instance (HasStorage m, Monoid w) => HasStorage (SW.WriterT w m)
 
 -- | Convert password to bytestring
 passToByteString :: Password -> BS.ByteString
