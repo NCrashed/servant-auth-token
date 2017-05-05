@@ -1,13 +1,14 @@
 name:                servant-auth-token
-version:             0.4.4.1
+version:             0.4.5.0
 synopsis:            Servant based API and server for token based authorisation
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme
 license:             BSD3
 license-file:        LICENSE
-author:              NCrashed
+author:               Anton Gushcha <ncrashed@gmail.com>
+                    , Ivan Lazar Miljenovic <Ivan.Miljenovic@gmail.com>
 maintainer:          ncrashed@gmail.com
-copyright:           2016 Anton Gushcha
+copyright:           2016-2017 Anton Gushcha
 category:            Web
 build-type:          Simple
 extra-source-files:
@@ -33,6 +34,15 @@ extra-source-files:
   example/persistent/Setup.hs
   example/persistent/config.yaml
   example/persistent/servant-auth-token-example-persistent.cabal
+  example/leveldb/src/API.hs
+  example/leveldb/src/Config.hs
+  example/leveldb/src/Main.hs
+  example/leveldb/src/Monad.hs
+  example/leveldb/src/Server.hs
+  example/leveldb/LICENSE
+  example/leveldb/Setup.hs
+  example/leveldb/config.yaml
+  example/leveldb/servant-auth-token-example-leveldb.cabal
 cabal-version:       >=1.10
 
 library

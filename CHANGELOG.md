@@ -1,3 +1,8 @@
+0.4.5.0
+=======
+
+* Auto deriving `HasAuthConfig` and `HasStorage` for transformers.
+
 0.4.4.1
 =======
 
