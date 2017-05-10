@@ -8,6 +8,7 @@ module Servant.Server.Auth.Token.Persistent(
 import Control.Monad.Cont.Class (MonadCont(..))
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.RWS.Class (MonadRWS)
 import Control.Monad.State.Class (MonadState(state))
 import Control.Monad.Trans.Control
 import Control.Monad.Writer.Class (MonadWriter(..))
@@ -45,6 +46,8 @@ instance (MonadWriter w m) => MonadWriter w (PersistentBackendT m) where
   tell   = lift . tell
   listen = unwrapPersistentBackendT listen
   pass   = unwrapPersistentBackendT pass
+
+instance (MonadRWS r w s m) => MonadRWS r w s (PersistentBackendT m)
 
 mapPersistentBackendT :: (m (Either ServantErr a) -> n (Either ServantErr b))
                          -> PersistentBackendT m a -> PersistentBackendT n b
