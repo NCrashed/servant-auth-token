@@ -20,17 +20,8 @@ import qualified Servant.Server.Auth.Token.Persistent.Schema as S
 newtype PersistentBackendT m a = PersistentBackendT { unPersistentBackendT :: ReaderT (AuthConfig, ConnectionPool) (ExceptT ServantErr (SqlPersistT m)) a }
   deriving (Functor, Applicative, Monad, MonadIO, MonadError ServantErr)
 
-instance Monad m => MonadReader SqlBackend (PersistentBackendT m) where
-  ask = PersistentBackendT $ lift . lift $ ask
-  local f m = do
-    (cfg, pool) <- PersistentBackendT ask
-    em <- PersistentBackendT . lift . lift $ local f $ runExceptT $ runReaderT (unPersistentBackendT m) (cfg, pool)
-    case em of
-      Left er -> PersistentBackendT . lift $ throwError er
-      Right m' -> return m'
-
 instance Monad m => HasAuthConfig (PersistentBackendT m) where
-  getAuthConfig = fmap fst $ PersistentBackendT ask
+  getAuthConfig = PersistentBackendT $ asks fst
 
 -- | Execute backend action with given connection pool.
 runPersistentBackendT :: MonadBaseControl IO m => AuthConfig -> ConnectionPool -> PersistentBackendT m a -> m (Either ServantErr a)
