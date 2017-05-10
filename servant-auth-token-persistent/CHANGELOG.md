@@ -1,4 +1,4 @@
-0.4.1.0
+0.5.0.0
 =======
 
 * MTL instances for `PersistentBackendT`. Use `liftDB` instead of removed `MonadReader SqlBackend` instance. 
