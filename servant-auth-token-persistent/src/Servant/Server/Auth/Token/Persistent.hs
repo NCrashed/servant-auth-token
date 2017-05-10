@@ -3,6 +3,7 @@
 module Servant.Server.Auth.Token.Persistent(
     PersistentBackendT
   , runPersistentBackendT
+  , liftDB
   ) where
 
 import Control.Monad.Cont.Class (MonadCont(..))
@@ -32,7 +33,7 @@ instance Monad m => HasAuthConfig (PersistentBackendT m) where
   getAuthConfig = PersistentBackendT $ asks fst
 
 instance MonadTrans PersistentBackendT where
-  lift m = PersistentBackendT . lift . lift . lift $ m
+  lift = PersistentBackendT . lift . lift . lift
 
 instance (MonadReader r m) => MonadReader r (PersistentBackendT m) where
   ask   = lift ask
