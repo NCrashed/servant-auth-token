@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Module      : Servant.Server.Auth.Token
 Description : Implementation of token authorisation API
