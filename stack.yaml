@@ -40,6 +40,7 @@ packages:
 - 'servant-auth-token-acid'
 - 'servant-auth-token-persistent'
 - 'servant-auth-token-leveldb'
+- 'servant-auth-token-rocksdb'
 - 'example/acid'
 - 'example/persistent'
 - 'example/leveldb'
@@ -48,6 +49,10 @@ packages:
 #     commit: d011f7bfecd18d07ff67ce9f67f8741e110a2719
 #   extra-dep: true
 # - '../servant-auth-token-api'
+- location:
+    git: https://github.com/serokell/rocksdb-haskell.git
+    commit: 325427fc709183c8fdf777ad5ea09f8d92bf8585
+  extra-dep: true
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
