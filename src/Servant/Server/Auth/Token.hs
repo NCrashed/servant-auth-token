@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 {-|
 Module      : Servant.Server.Auth.Token
 Description : Implementation of token authorisation API
@@ -33,6 +34,7 @@ module Servant.Server.Auth.Token(
   , AuthHandler
   -- * Helpers
   , guardAuthToken
+  , WithAuthToken(..)
   , ensureAdmin
   , authUserByToken
   -- * API methods
@@ -457,6 +459,36 @@ guardUser uid = do
 -- doesn't have needed permissions, throw 401 response
 guardAuthToken :: forall perms m . (PermsList perms, AuthHandler m) => MToken perms -> m ()
 guardAuthToken mt = void $ guardAuthToken' (fmap unToken mt) $ unliftPerms (Proxy :: Proxy perms)
+
+class WithAuthToken a where
+
+  -- | Authenticate an entire API rather than each individual
+  -- endpoint.
+  --
+  -- As such, for a given 'HasServer' instance @api@, if you have:
+  --
+  -- @
+  --   f :: 'ServerT' api m
+  -- @
+  --
+  -- then:
+  --
+  -- @
+  --   withAuthToken f :: (AuthHandler m) => ServerT ('TokenHeader' perms :> api) m
+  -- @
+  --
+  -- (Note that the types don't reflect this, as it isn't possible to
+  -- guarantee what all possible @ServerT@ instances might be.)
+  withAuthToken :: (PermsList perms) => a -> MToken perms -> a
+
+instance (AuthHandler m) => WithAuthToken (m a) where
+  withAuthToken m mt = guardAuthToken mt *> m
+
+instance (WithAuthToken r) => WithAuthToken (a -> r) where
+  withAuthToken f mt = (`withAuthToken` mt) . f
+
+instance (WithAuthToken a, WithAuthToken b) => WithAuthToken (a :<|> b) where
+  withAuthToken (a :<|> b) mt = withAuthToken a mt :<|> withAuthToken b mt
 
 -- | Same as `guardAuthToken` but returns record about the token
 guardAuthToken' :: AuthHandler m => Maybe SimpleToken -> [Permission] -> m (WithId AuthTokenId AuthToken)
