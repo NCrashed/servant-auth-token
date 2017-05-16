@@ -1,3 +1,8 @@
+0.4.6.0
+=======
+
+* Add `withAuthToken` to guard groups of endpoints.
+
 0.4.5.0
 =======
 
