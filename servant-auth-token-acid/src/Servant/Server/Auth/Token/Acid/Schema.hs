@@ -147,7 +147,7 @@ acidQueries = [
   , mkName "insertSingleUseCode"
   , mkName "setSingleUseCodeUsed"
   , mkName "getUnusedCode"
-  , mkName "invalidatePermamentCodes"
+  , mkName "invalidatePermanentCodes"
   , mkName "selectLastRestoreCode"
   , mkName "insertUserRestore"
   , mkName "findRestoreCode"
@@ -380,13 +380,13 @@ deriveQueries globalStateName = [d|
           && userSingleUseCodeUsed usc == Nothing
           && (userSingleUseCodeExpire usc == Nothing || userSingleUseCodeExpire usc >= Just t)
 
-    -- | Invalidate all permament codes for user and set use time for them
-    invalidatePermamentCodes :: HasModelWrite $a => UserImplId -> UTCTime -> Update $a ()
-    invalidatePermamentCodes i t = modifyM $ \m -> m { modelUserSingleUseCodes = f $ modelUserSingleUseCodes m }
+    -- | Invalidate all permanent codes for user and set use time for them
+    invalidatePermanentCodes :: HasModelWrite $a => UserImplId -> UTCTime -> Update $a ()
+    invalidatePermanentCodes i t = modifyM $ \m -> m { modelUserSingleUseCodes = f $ modelUserSingleUseCodes m }
       where
-        f m = (fmap invalidate . M.filter isPermament $ m) `M.union` m
+        f m = (fmap invalidate . M.filter isPermanent $ m) `M.union` m
         invalidate su = su { userSingleUseCodeUsed = Just t }
-        isPermament usc =
+        isPermanent usc =
              userSingleUseCodeUser usc == i
           && userSingleUseCodeUsed usc == Nothing
           && userSingleUseCodeExpire usc == Nothing

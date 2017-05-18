@@ -444,7 +444,7 @@ authGetSingleUseCodes uid mcount token = do
   let uid' = toKey uid
   _ <- guard404 "user" $ readUserInfo uid
   AuthConfig{..} <- getConfig
-  let n = min singleUseCodePermamentMaximum $ fromMaybe singleUseCodeDefaultCount mcount
+  let n = min singleUseCodePermanentMaximum $ fromMaybe singleUseCodeDefaultCount mcount
   OnlyField <$> generateSingleUsedCodes uid' singleUseCodeGenerator n
 
 -- | Getting user by id, throw 404 response if not found
