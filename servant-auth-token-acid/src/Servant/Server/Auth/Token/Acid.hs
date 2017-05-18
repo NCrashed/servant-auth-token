@@ -92,7 +92,7 @@ deriveAcidHasStorage globalState = [d|
     insertSingleUseCode = liftAcidUpdate . $(conE $ mkName "InsertSingleUseCode")
     setSingleUseCodeUsed i mt = liftAcidUpdate $ $(conE $ mkName "SetSingleUseCodeUsed") i mt
     getUnusedCode c i t = liftAcidQuery $ $(conE $ mkName "GetUnusedCode") c i t
-    invalidatePermamentCodes i t = liftAcidUpdate $ $(conE $ mkName "InvalidatePermamentCodes") i t
+    invalidatePermanentCodes i t = liftAcidUpdate $ $(conE $ mkName "InvalidatePermanentCodes") i t
     selectLastRestoreCode i t = liftAcidQuery $ $(conE $ mkName "SelectLastRestoreCode") i t
     insertUserRestore = liftAcidUpdate . $(conE $ mkName "InsertUserRestore")
     findRestoreCode i rc t = liftAcidQuery $ $(conE $ mkName "FindRestoreCode") i rc t
@@ -130,7 +130,7 @@ deriveAcidHasStorage globalState = [d|
     {-# INLINE insertSingleUseCode #-}
     {-# INLINE setSingleUseCodeUsed #-}
     {-# INLINE getUnusedCode #-}
-    {-# INLINE invalidatePermamentCodes #-}
+    {-# INLINE invalidatePermanentCodes #-}
     {-# INLINE selectLastRestoreCode #-}
     {-# INLINE insertUserRestore #-}
     {-# INLINE findRestoreCode #-}
