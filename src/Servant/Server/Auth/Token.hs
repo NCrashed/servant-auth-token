@@ -484,7 +484,7 @@ class WithAuthToken a where
 instance (AuthHandler m) => WithAuthToken (m a) where
   withAuthToken m mt = guardAuthToken mt *> m
 
-instance (WithAuthToken r) => WithAuthToken (a -> r) where
+instance {-# OVERLAPPING #-} (WithAuthToken r) => WithAuthToken (a -> r) where
   withAuthToken f mt = (`withAuthToken` mt) . f
 
 instance (WithAuthToken a, WithAuthToken b) => WithAuthToken (a :<|> b) where
