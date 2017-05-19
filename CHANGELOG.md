@@ -1,3 +1,8 @@
+0.4.7.0
+=======
+
+* Make `withAuthToken` work properly.
+
 0.4.6.0
 =======
 
