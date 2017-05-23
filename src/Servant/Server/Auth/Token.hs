@@ -34,6 +34,7 @@ module Servant.Server.Auth.Token(
   , AuthHandler
   -- * Helpers
   , guardAuthToken
+  , guardAuthToken'
   , WithAuthToken(..)
   , ensureAdmin
   , authUserByToken
