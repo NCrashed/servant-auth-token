@@ -38,6 +38,9 @@ module Servant.Server.Auth.Token(
   , WithAuthToken(..)
   , ensureAdmin
   , authUserByToken
+  -- * Combinators
+  , AuthPerm
+  , AuthAction(..)
   -- * API methods
   , authSignin
   , authSigninGetCode
@@ -87,6 +90,7 @@ import Servant
 import Servant.API.Auth.Token
 import Servant.API.Auth.Token.Pagination
 import Servant.Server.Auth.Token.Common
+import Servant.Server.Auth.Token.Combinator
 import Servant.Server.Auth.Token.Config
 import Servant.Server.Auth.Token.Model
 import Servant.Server.Auth.Token.Monad
