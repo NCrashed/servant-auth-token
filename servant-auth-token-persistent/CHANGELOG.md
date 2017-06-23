@@ -1,3 +1,8 @@
+0.5.1.1
+=======
+
+* Relax `servant` and `servant-server` versions.
+
 0.5.1.0
 =======
 

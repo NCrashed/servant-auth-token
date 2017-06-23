@@ -77,14 +77,14 @@ runServerM e = runStdoutLoggingT . flip runReaderT e . unServerM
 -- | Execution of 'ServerM' in IO monad
 runServerMIO :: ServerEnv -> ServerM a -> IO a
 runServerMIO env m = do
-  ea <- runExceptT $ runServerM env m
+  ea <- runHandler $ runServerM env m
   case ea of
     Left e -> fail $ "runServerMIO: " <> show e
     Right a -> return a
 
 -- | Transformation to Servant 'Handler'
 serverMtoHandler :: ServerEnv -> ServerM :~> Handler
-serverMtoHandler e = Nat (runServerM e)
+serverMtoHandler e = NT (runServerM e)
 
 -- | Special monad for authorisation actions
 newtype AuthM a = AuthM { unAuthM :: PersistentBackendT IO a }
@@ -95,4 +95,4 @@ runAuth :: AuthM a -> ServerM a
 runAuth m = do
   cfg <- asks envAuthConfig
   pool <- asks envPool
-  liftHandler $ ExceptT $ runPersistentBackendT cfg pool $ unAuthM m
+  liftHandler $ Handler . ExceptT $ runPersistentBackendT cfg pool $ unAuthM m
