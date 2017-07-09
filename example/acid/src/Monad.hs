@@ -74,14 +74,14 @@ runServerM e = runStdoutLoggingT . flip runReaderT e . unServerM
 -- | Execution of 'ServerM' in IO monad
 runServerMIO :: ServerEnv -> ServerM a -> IO a
 runServerMIO env m = do
-  ea <- runExceptT $ runServerM env m
+  ea <- runHandler $ runServerM env m
   case ea of
     Left e -> fail $ "runServerMIO: " <> show e
     Right a -> return a
 
 -- | Transformation to Servant 'Handler'
 serverMtoHandler :: ServerEnv -> ServerM :~> Handler
-serverMtoHandler e = Nat (runServerM e)
+serverMtoHandler e = NT (runServerM e)
 
 -- Derive HasStorage for 'AcidBackendT' with your 'DB'
 deriveAcidHasStorage ''DB
@@ -95,4 +95,4 @@ runAuth :: AuthM a -> ServerM a
 runAuth m = do
   cfg <- asks envAuthConfig
   db <- asks envDB
-  liftHandler $ ExceptT $ runAcidBackendT cfg db $ unAuthM m
+  liftHandler $ Handler. ExceptT $ runAcidBackendT cfg db $ unAuthM m
