@@ -2,7 +2,6 @@
 {-# language MultiParamTypeClasses #-}
 {-# language FlexibleContexts #-}
 {-# language FlexibleInstances #-}
-{-# language TypeApplications #-}
 {-# language TypeFamilies #-}
 {-# language TypeOperators #-}
 {-# language KindSignatures #-}
@@ -47,7 +46,7 @@ instance ( HasServer api context
 
   route Proxy context subserver
     = route (Proxy :: Proxy api) context
-      (subserver `addAuthPermCheck` withRequest (authCheck (Proxy @ perms)))
+      (subserver `addAuthPermCheck` withRequest (authCheck (Proxy :: Proxy perms)))
       where
         authHandler :: Proxy perms -> Request -> Handler ()
         authHandler pperms req =
