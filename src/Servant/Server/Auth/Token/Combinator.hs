@@ -15,7 +15,6 @@ module Servant.Server.Auth.Token.Combinator
   ) where
 
 import Control.Monad.IO.Class
-import Control.Monad.Except
 import GHC.TypeLits (Symbol)
 import Data.Proxy
 import Network.Wai (Request, requestHeaders)
@@ -60,12 +59,12 @@ instance ( HasServer api context
 
         authCheck :: Proxy perms -> Request -> DelayedIO ()
         authCheck pperms = (>>= either delayedFailFatal pure) . liftIO
-                      . runExceptT . authHandler pperms
+                      . runHandler . authHandler pperms
 
         addAuthPermCheck :: Delayed env b -> DelayedIO a -> Delayed env b
         addAuthPermCheck Delayed{..} new = Delayed
           { authD   = (,) <$> authD <*> new
-          , serverD = \ c (y, v) b req -> serverD c y b req
+          , serverD = \ c p h (y, v) b req -> serverD c p h y b req
           , ..
           }
 
