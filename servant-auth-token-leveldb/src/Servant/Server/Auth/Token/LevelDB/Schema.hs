@@ -432,18 +432,18 @@ getUnusedCode c i t db = headMay . sorting <$> selectRecords modelUserSingleUseC
       && isNothing (userSingleUseCodeUsed usc)
       && (isNothing (userSingleUseCodeExpire usc) || userSingleUseCodeExpire usc >= Just t)
 
--- | Invalidate all permament codes for user and set use time for them
-invalidatePermamentCodes :: (MonadResource m, MonadMask m) => UserImplId -> UTCTime -> LevelDBEnv -> m ()
-invalidatePermamentCodes i t db = do
+-- | Invalidate all permanent codes for user and set use time for them
+invalidatePermanentCodes :: (MonadResource m, MonadMask m) => UserImplId -> UTCTime -> LevelDBEnv -> m ()
+invalidatePermanentCodes i t db = do
   cs <- view modelUserSingleUseCodes <$> loadModel db
   forM_ (F.toList cs) $ \cid -> do
     mc <- load db cid
     case mc of
-      Just usc | isPermament usc -> modify db cid invalidate
+      Just usc | isPermanent usc -> modify db cid invalidate
       _ -> return ()
   where
     invalidate su = su { userSingleUseCodeUsed = Just t }
-    isPermament usc =
+    isPermanent usc =
          userSingleUseCodeUser usc == i
       && isNothing (userSingleUseCodeUsed usc)
       && isNothing (userSingleUseCodeExpire usc)

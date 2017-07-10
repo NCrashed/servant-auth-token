@@ -79,7 +79,7 @@ instance (MonadBase IO m, MonadIO m, MonadThrow m, MonadMask m) => HasStorage (R
   insertSingleUseCode = liftEnv . S.insertSingleUseCode
   setSingleUseCodeUsed i mt = liftEnv $ S.setSingleUseCodeUsed i mt
   getUnusedCode c i t = liftEnv $ S.getUnusedCode c i t
-  invalidatePermamentCodes i t = liftEnv $ S.invalidatePermamentCodes i t
+  invalidatePermanentCodes i t = liftEnv $ S.invalidatePermanentCodes i t
   selectLastRestoreCode i t = liftEnv $ S.selectLastRestoreCode i t
   insertUserRestore = liftEnv . S.insertUserRestore
   findRestoreCode i rc t = liftEnv $ S.findRestoreCode i rc t
@@ -117,7 +117,7 @@ instance (MonadBase IO m, MonadIO m, MonadThrow m, MonadMask m) => HasStorage (R
   {-# INLINE insertSingleUseCode #-}
   {-# INLINE setSingleUseCodeUsed #-}
   {-# INLINE getUnusedCode #-}
-  {-# INLINE invalidatePermamentCodes #-}
+  {-# INLINE invalidatePermanentCodes #-}
   {-# INLINE selectLastRestoreCode #-}
   {-# INLINE insertUserRestore #-}
   {-# INLINE findRestoreCode #-}

@@ -119,7 +119,7 @@ instance (MonadIO m) => HasStorage (PersistentBackendT m) where
             [S.UserSingleUseCodeExpire ==. Nothing]
         ||. [S.UserSingleUseCodeExpire >=. Just t]
     )) [Desc S.UserSingleUseCodeExpire]
-  invalidatePermamentCodes i t = liftDB $ updateWhere [
+  invalidatePermanentCodes i t = liftDB $ updateWhere [
       S.UserSingleUseCodeUser ==. S.convertTo i
     , S.UserSingleUseCodeUsed ==. Nothing
     , S.UserSingleUseCodeExpire ==. Nothing
