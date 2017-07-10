@@ -25,7 +25,7 @@ newServerEnv cfg = do
   pool <- liftIO $ do
     pool <- createPool cfg
     -- run migrations
-    flip runSqlPool pool $ runMigration S.migrateAll
+    flip runSqlPool pool $ runMigration S.migrateAllAuth
     -- create default admin if missing one
     _ <- runPersistentBackendT authConfig pool $ ensureAdmin 17 "admin" "123456" "admin@localhost"
     return pool
