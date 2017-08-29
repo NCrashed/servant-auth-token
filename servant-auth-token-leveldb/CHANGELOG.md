@@ -1,3 +1,8 @@
+0.5.0.0
+=======
+
+* Breaking changes in `servant-auth-token-0.5.0.0`.
+
 0.4.2.0
 =======
 

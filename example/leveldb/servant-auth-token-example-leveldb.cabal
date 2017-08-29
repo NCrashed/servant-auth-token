@@ -1,5 +1,5 @@
 name:                servant-auth-token-example-leveldb
-version:             0.4.0.2
+version:             0.5.0.0
 synopsis:            Example server for token auth for leveldb backend
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme
@@ -36,9 +36,9 @@ executable servant-auth-token-example-leveldb
     , optparse-applicative          >= 0.12     && < 0.14
     , safecopy-store                >= 0.9      && < 0.10
     , servant                       >= 0.11     && < 0.12
-    , servant-auth-token            >= 0.4      && < 0.5
+    , servant-auth-token            >= 0.5      && < 0.6
     , servant-auth-token-api        >= 0.4      && < 0.5
-    , servant-auth-token-leveldb    >= 0.4      && < 0.5
+    , servant-auth-token-leveldb    >= 0.5      && < 0.6
     , servant-server                >= 0.9      && < 0.12
     , text                          >= 1.2      && < 1.3
     , time                          >= 1.6      && < 1.7

@@ -1,3 +1,8 @@
+0.4.4.0
+=======
+
+* Fix name of `rocksdb-haskell`.
+
 0.4.3.0
 =======
 

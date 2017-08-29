@@ -61,6 +61,7 @@ extra-deps:
 - aeson-injector-1.0.8.0
 - cabal-doctest-1.0.2
 - concurrent-extra-0.7.0.11
+- rocksdb-haskell-1.0.0
 - safecopy-store-0.9.4
 - servant-0.11
 - servant-auth-token-api-0.4.2.2
@@ -73,6 +74,14 @@ flags: {}
 
 # Extra package databases containing global packages
 extra-package-dbs: []
+
+nix:
+  enable: false
+  packages:
+    - zlib
+    - postgresql96
+    - rocksdb
+    - leveldb
 
 # Control whether we use the GHC we find on the path
 # system-ghc: true
