@@ -1,3 +1,8 @@
+0.4.3.0
+=======
+
+* Push upper bounds for `vector`.
+
 0.4.2.1
 =======
 
