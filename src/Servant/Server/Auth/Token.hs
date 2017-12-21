@@ -34,9 +34,13 @@ module Servant.Server.Auth.Token(
   , AuthHandler
   -- * Helpers
   , guardAuthToken
+  , guardAuthToken'
   , WithAuthToken(..)
   , ensureAdmin
   , authUserByToken
+  -- * Combinators
+  , AuthPerm
+  , AuthAction(..)
   -- * API methods
   , authSignin
   , authSigninGetCode
@@ -86,6 +90,7 @@ import Servant
 import Servant.API.Auth.Token
 import Servant.API.Auth.Token.Pagination
 import Servant.Server.Auth.Token.Common
+import Servant.Server.Auth.Token.Combinator
 import Servant.Server.Auth.Token.Config
 import Servant.Server.Auth.Token.Model
 import Servant.Server.Auth.Token.Monad
@@ -454,7 +459,7 @@ authGetSingleUseCodes uid mcount token = do
   let uid' = toKey uid
   _ <- guard404 "user" $ readUserInfo uid
   AuthConfig{..} <- getConfig
-  let n = min singleUseCodePermamentMaximum $ fromMaybe singleUseCodeDefaultCount mcount
+  let n = min singleUseCodePermanentMaximum $ fromMaybe singleUseCodeDefaultCount mcount
   OnlyField <$> generateSingleUsedCodes uid' singleUseCodeGenerator n
 
 -- | Getting user by id, throw 404 response if not found

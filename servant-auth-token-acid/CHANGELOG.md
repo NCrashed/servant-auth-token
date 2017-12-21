@@ -1,7 +1,12 @@
-0.4.2.1
+0.5.1.0
 =======
 
 * Push version bounds.
+
+0.5.0.0
+=======
+
+* Breaking changes in `servant-auth-token-0.5.0.0`.
 
 0.4.1.1
 =======

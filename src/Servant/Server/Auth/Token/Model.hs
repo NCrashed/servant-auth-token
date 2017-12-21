@@ -374,10 +374,10 @@ class MonadIO m => HasStorage m where
   default getUnusedCode :: (m ~ t n, MonadTrans t, HasStorage n) => SingleUseCode -> UserImplId -> UTCTime -> m (Maybe (WithId UserSingleUseCodeId UserSingleUseCode))
   getUnusedCode suc = (lift .) . getUnusedCode suc
 
-  -- | Invalidate all permament codes for user and set use time for them
-  invalidatePermamentCodes :: UserImplId -> UTCTime -> m ()
-  default invalidatePermamentCodes :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> UTCTime -> m ()
-  invalidatePermamentCodes = (lift .) . invalidatePermamentCodes
+  -- | Invalidate all permanent codes for user and set use time for them
+  invalidatePermanentCodes :: UserImplId -> UTCTime -> m ()
+  default invalidatePermanentCodes :: (m ~ t n, MonadTrans t, HasStorage n) => UserImplId -> UTCTime -> m ()
+  invalidatePermanentCodes = (lift .) . invalidatePermanentCodes
 
   -- | Select last valid restoration code by the given current time
   selectLastRestoreCode :: UserImplId -> UTCTime -> m (Maybe (WithId UserRestoreId UserRestore))

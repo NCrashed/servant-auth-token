@@ -15,7 +15,7 @@ import qualified Servant.Server.Auth.Token.Model  as M
 
 share [mkPersist sqlSettings
      , mkDeleteCascade sqlSettings
-     , mkMigrate "migrateAll"] [persistLowerCase|
+     , mkMigrate "migrateAllAuth"] [persistLowerCase|
 UserImpl
   login       Login
   password    Password     -- encrypted with salt

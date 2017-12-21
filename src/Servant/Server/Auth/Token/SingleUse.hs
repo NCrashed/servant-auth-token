@@ -66,7 +66,7 @@ generateSingleUsedCodes :: HasStorage m => UserImplId -- ^ Id of user
   -> m [SingleUseCode]
 generateSingleUsedCodes uid gen n = do
   t <- liftIO getCurrentTime
-  invalidatePermamentCodes uid t
+  invalidatePermanentCodes uid t
   replicateM (fromIntegral n) $ do
     code <- liftIO gen
     _ <- insertSingleUseCode $ UserSingleUseCode code uid Nothing Nothing

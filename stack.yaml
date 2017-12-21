@@ -44,7 +44,7 @@ packages:
 - 'example/acid'
 - 'example/persistent'
 - 'example/leveldb'
-- '../safecopy'
+#- '../safecopy'
 #- '../servant-auth-token-api'
 # - location:
 #     git: https://github.com/NCrashed/servant-auth-token-api.git
@@ -61,7 +61,7 @@ packages:
 extra-deps:
 - acid-state-0.14.3
 - rocksdb-haskell-1.0.1
-#- safecopy-store-0.9.6
+- safecopy-store-0.9.6
 - servant-auth-token-api-0.5.1.0
 
 # Override default flag values for local packages and extra-deps
@@ -69,6 +69,14 @@ flags: {}
 
 # Extra package databases containing global packages
 extra-package-dbs: []
+
+nix:
+  enable: false
+  packages:
+    - zlib
+    - postgresql96
+    - rocksdb
+    - leveldb
 
 # Control whether we use the GHC we find on the path
 # system-ghc: true

@@ -1,3 +1,15 @@
+0.5.1.0
+=======
+
+* Versions bounds are relaxed.
+
+0.5.0.0
+=======
+
+* Fix typo in `invalidatePermanentCodes`.
+* Servant combinator.
+* Rename migration function.
+
 0.4.7.1
 =======
 

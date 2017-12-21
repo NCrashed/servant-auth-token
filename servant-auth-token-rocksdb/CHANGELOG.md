@@ -1,7 +1,17 @@
-0.4.3.0
+0.5.1.0
 =======
 
 * Push version bounds.
+
+0.4.4.0
+=======
+
+* Fix name of `rocksdb-haskell`.
+
+0.4.3.0
+=======
+
+* Push upper bounds for `vector`.
 
 0.4.2.1
 =======
