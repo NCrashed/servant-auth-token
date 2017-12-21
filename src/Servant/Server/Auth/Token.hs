@@ -99,6 +99,7 @@ import qualified Data.ByteString.Lazy as BS
 authServer :: AuthHandler m => ServerT AuthAPI m
 authServer =
        authSignin
+  :<|> authSigninPost
   :<|> authSigninGetCode
   :<|> authSigninPostCode
   :<|> authTouch
@@ -142,6 +143,15 @@ authSignin mlogin mpass mexpire = do
       Just user@(WithField _ UserImpl{..}) -> if passToByteString pass `verifyPassword` passToByteString userImplPassword
         then return user
         else err
+
+-- | Implementation of "signin" method
+authSigninPost :: AuthHandler m
+  => AuthSigninPostBody -- ^ Holds login, password and token lifetime
+  -> m (OnlyField "token" SimpleToken) -- ^ If everything is OK, return token
+authSigninPost AuthSigninPostBody{..} = authSignin
+  (Just authSigninBodyLogin)
+  (Just authSigninBodyPassword)
+  authSigninBodySeconds
 
 -- | Helper to get or generate new token for user
 getAuthToken :: AuthHandler m

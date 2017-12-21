@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-8.19
+resolver: lts-10.0
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -44,29 +44,25 @@ packages:
 - 'example/acid'
 - 'example/persistent'
 - 'example/leveldb'
+- '../safecopy'
+#- '../servant-auth-token-api'
 # - location:
 #     git: https://github.com/NCrashed/servant-auth-token-api.git
 #     commit: d011f7bfecd18d07ff67ce9f67f8741e110a2719
 #   extra-dep: true
 # - '../servant-auth-token-api'
-- location:
-    git: https://github.com/serokell/rocksdb-haskell.git
-    commit: 325427fc709183c8fdf777ad5ea09f8d92bf8585
-  extra-dep: true
+#- location:
+#    git: https://github.com/serokell/rocksdb-haskell.git
+#    commit: 325427fc709183c8fdf777ad5ea09f8d92bf8585
+#  extra-dep: true
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-- aeson-1.2.1.0
-- aeson-injector-1.0.8.0
-- cabal-doctest-1.0.2
-- concurrent-extra-0.7.0.11
-- safecopy-store-0.9.4
-- servant-0.11
-- servant-auth-token-api-0.4.2.2
-- servant-docs-0.10.0.1
-- servant-server-0.11
-- servant-swagger-1.1.3
+- acid-state-0.14.3
+- rocksdb-haskell-1.0.1
+#- safecopy-store-0.9.6
+- servant-auth-token-api-0.5.1.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}
