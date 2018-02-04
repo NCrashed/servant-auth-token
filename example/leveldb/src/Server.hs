@@ -34,9 +34,10 @@ runExampleServer config = liftIO $ do
 
 -- | WAI application of server
 exampleServerApp :: ServerEnv -> Application
-exampleServerApp e = serve (Proxy :: Proxy ExampleAPI) apiImpl
+exampleServerApp e = serve api apiImpl
   where
-    apiImpl = enter (serverMtoHandler e) exampleServer
+    api = Proxy :: Proxy ExampleAPI
+    apiImpl = hoistServer api (runServerM e) exampleServer
 
 -- | Implementation of main server API
 exampleServer :: ServerT ExampleAPI ServerM

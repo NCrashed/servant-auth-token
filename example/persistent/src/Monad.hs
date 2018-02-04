@@ -4,7 +4,6 @@ module Monad(
   , newServerEnv
   , runServerM
   , runServerMIO
-  , serverMtoHandler
   , AuthM(..)
   , runAuth
   ) where
@@ -81,10 +80,6 @@ runServerMIO env m = do
   case ea of
     Left e -> fail $ "runServerMIO: " <> show e
     Right a -> return a
-
--- | Transformation to Servant 'Handler'
-serverMtoHandler :: ServerEnv -> ServerM :~> Handler
-serverMtoHandler e = NT (runServerM e)
 
 -- | Special monad for authorisation actions
 newtype AuthM a = AuthM { unAuthM :: PersistentBackendT IO a }
