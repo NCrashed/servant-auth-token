@@ -50,13 +50,13 @@ runAcidBackendT cfg db ma = runExceptT $ runReaderT (unAcidBackendT ma) (cfg, db
 -- @
 deriveAcidHasStorage :: Name -> DecsQ
 deriveAcidHasStorage globalState = [d|
-  -- | Helper to execute DB actions in backend monad
+  -- Helper to execute DB actions in backend monad
   liftAcidQuery :: (QueryEvent event, MonadIO m, MethodState event ~ $st) => event -> AcidBackendT $st m (EventResult event)
   liftAcidQuery e = do
     (_, db) <- ask
     liftIO $ query db e
 
-  -- | Helper to execute DB actions in backend monad
+  -- Helper to execute DB actions in backend monad
   liftAcidUpdate :: (UpdateEvent event, MonadIO m, MethodState event ~ $st) => event -> AcidBackendT $st m (EventResult event)
   liftAcidUpdate e = do
     (_, db) <- ask

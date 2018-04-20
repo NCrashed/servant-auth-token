@@ -183,35 +183,35 @@ putM m = modifyM (const m)
 -- | Mixin queries to work with auth state
 deriveQueries :: Name -> DecsQ
 deriveQueries globalStateName = [d|
-    -- | Getting user from storage
+    -- Getting user from storage
     getUserImpl :: HasModelRead $a => UserImplId -> Query $a (Maybe UserImpl)
     getUserImpl i = M.lookup i <$> asksM modelUsers
 
-    -- | Getting user from storage by login
+    -- Getting user from storage by login
     getUserImplByLogin :: HasModelRead $a => Login -> Query $a (Maybe (WithId UserImplId UserImpl))
     getUserImplByLogin l = M.lookup l <$> asksM modelUsersByLogin
 
-    -- | Helper to get page from map
+    -- Helper to get page from map
     getPagedList :: Ord i => Page -> PageSize -> Map i a -> ([WithId i a], Word)
     getPagedList p s m = (uncurry WithField <$> es, fromIntegral $ F.length m)
       where
         es = take (fromIntegral s) . drop (fromIntegral $ p * s) . sortBy (comparing fst) . M.toList $ m
 
-    -- | Get paged list of users and total count of users
+    -- Get paged list of users and total count of users
     listUsersPaged :: HasModelRead $a => Page -> PageSize -> Query $a ([WithId UserImplId UserImpl], Word)
     listUsersPaged p s = getPagedList p s <$> asksM modelUsers
 
-    -- | Get user permissions, ascending by tag
+    -- Get user permissions, ascending by tag
     getUserImplPermissions :: HasModelRead $a => UserImplId -> Query $a [WithId UserPermId UserPerm]
     getUserImplPermissions i = fmap (uncurry WithField) . M.toList . M.filter ((i ==) . userPermUser) <$> asksM modelUserPerms
 
-    -- | Delete user permissions
+    -- Delete user permissions
     deleteUserPermissions :: HasModelWrite $a => UserImplId -> Update $a ()
     deleteUserPermissions i = modifyM $ \m -> m { modelUserPerms = f $ modelUserPerms m }
       where
         f m = m `M.difference` M.filter ((i ==) . userPermUser) m
 
-    -- | Insertion of new user permission
+    -- Insertion of new user permission
     insertUserPerm :: HasModelWrite $a => UserPerm -> Update $a UserPermId
     insertUserPerm p = do
       m <- getM
@@ -222,7 +222,7 @@ deriveQueries globalStateName = [d|
       m' `seq` putM m'
       return i
 
-    -- | Insertion of new user
+    -- Insertion of new user
     insertUserImpl :: HasModelWrite $a => UserImpl -> Update $a UserImplId
     insertUserImpl v = do
       m <- getM
@@ -234,14 +234,14 @@ deriveQueries globalStateName = [d|
       m' `seq` putM m'
       return i
 
-    -- | Replace user with new value
+    -- Replace user with new value
     replaceUserImpl :: HasModelWrite $a => UserImplId -> UserImpl -> Update $a ()
     replaceUserImpl i v = modifyM $ \m -> m {
         modelUsers = M.insert i v . modelUsers $ m
       , modelUsersByLogin = M.insert (userImplLogin v) (WithField i v) . modelUsersByLogin $ m
       }
 
-    -- | Delete user by id
+    -- Delete user by id
     deleteUserImpl :: HasModelWrite $a => UserImplId -> Update $a ()
     deleteUserImpl i = do
       deleteUserPermissions i
@@ -252,11 +252,11 @@ deriveQueries globalStateName = [d|
           , modelUsersByLogin = M.delete (userImplLogin ui) . modelUsersByLogin $ m
           }
 
-    -- | Check whether the user has particular permission
+    -- Check whether the user has particular permission
     hasPerm :: HasModelRead $a => UserImplId -> Permission -> Query $a Bool
     hasPerm i p = (> 0) . F.length . M.filter (\up -> userPermUser up == i && userPermPermission up == p) <$> asksM modelUserPerms
 
-    -- | Get any user with given permission
+    -- Get any user with given permission
     getFirstUserByPerm :: HasModelRead $a => Permission -> Query $a (Maybe (WithId UserImplId UserImpl))
     getFirstUserByPerm perm = do
       m <- asksM modelUserPerms
@@ -264,17 +264,17 @@ deriveQueries globalStateName = [d|
         [] -> return Nothing
         ((_, p) : _) -> fmap (WithField $ userPermUser p) <$> getUserImpl (userPermUser p)
 
-    -- | Select user groups and sort them by ascending name
+    -- Select user groups and sort them by ascending name
     selectUserImplGroups :: HasModelRead $a => UserImplId -> Query $a [WithId AuthUserGroupUsersId AuthUserGroupUsers]
     selectUserImplGroups i = fmap (uncurry WithField) . M.toList . M.filter ((i ==) . authUserGroupUsersUser) <$> asksM modelAuthUserGroupUsers
 
-    -- | Remove user from all groups
+    -- Remove user from all groups
     clearUserImplGroups :: HasModelWrite $a => UserImplId -> Update $a ()
     clearUserImplGroups i = modifyM $ \m -> m { modelAuthUserGroupUsers = f $ modelAuthUserGroupUsers m }
       where
         f m = m `M.difference` M.filter ((i ==) . authUserGroupUsersUser) m
 
-    -- | Add new user group
+    -- Add new user group
     insertAuthUserGroup :: HasModelWrite $a => AuthUserGroup -> Update $a AuthUserGroupId
     insertAuthUserGroup v = do
       m <- getM
@@ -285,7 +285,7 @@ deriveQueries globalStateName = [d|
       m' `seq` putM m'
       return i
 
-    -- | Add user to given group
+    -- Add user to given group
     insertAuthUserGroupUsers :: HasModelWrite $a => AuthUserGroupUsers -> Update $a AuthUserGroupUsersId
     insertAuthUserGroupUsers v = do
       m <- getM
@@ -296,7 +296,7 @@ deriveQueries globalStateName = [d|
       m' `seq` putM m'
       return i
 
-    -- | Add permission to given group
+    -- Add permission to given group
     insertAuthUserGroupPerms :: HasModelWrite $a => AuthUserGroupPerms -> Update $a AuthUserGroupPermsId
     insertAuthUserGroupPerms v = do
       m <- getM
@@ -307,54 +307,54 @@ deriveQueries globalStateName = [d|
       m' `seq` putM m'
       return i
 
-    -- | Find user group by id
+    -- Find user group by id
     getAuthUserGroup :: HasModelRead $a => AuthUserGroupId -> Query $a (Maybe AuthUserGroup)
     getAuthUserGroup i = M.lookup i <$> asksM modelAuthUserGroups
 
-    -- | Get list of permissions of given group
+    -- Get list of permissions of given group
     listAuthUserGroupPermissions :: HasModelRead $a => AuthUserGroupId -> Query $a [WithId AuthUserGroupPermsId AuthUserGroupPerms]
     listAuthUserGroupPermissions i = fmap (uncurry WithField) . M.toList . M.filter ((i ==) . authUserGroupPermsGroup) <$> asksM modelAuthUserGroupPerms
 
-    -- | Get list of all users of the group
+    -- Get list of all users of the group
     listAuthUserGroupUsers :: HasModelRead $a => AuthUserGroupId -> Query $a [WithId AuthUserGroupUsersId AuthUserGroupUsers]
     listAuthUserGroupUsers i = fmap (uncurry WithField) . M.toList . M.filter ((i ==) . authUserGroupUsersGroup) <$> asksM modelAuthUserGroupUsers
 
-    -- | Replace record of user group
+    -- Replace record of user group
     replaceAuthUserGroup :: HasModelWrite $a => AuthUserGroupId -> AuthUserGroup -> Update $a ()
     replaceAuthUserGroup i v = modifyM $ \m -> m { modelAuthUserGroups = M.insert i v $ modelAuthUserGroups m }
 
-    -- | Remove all users from group
+    -- Remove all users from group
     clearAuthUserGroupUsers :: HasModelWrite $a => AuthUserGroupId -> Update $a ()
     clearAuthUserGroupUsers i = modifyM $ \m -> m { modelAuthUserGroupUsers = f $ modelAuthUserGroupUsers m }
       where
         f m = m `M.difference` M.filter ((i ==) . authUserGroupUsersGroup) m
 
-    -- | Remove all permissions from group
+    -- Remove all permissions from group
     clearAuthUserGroupPerms :: HasModelWrite $a => AuthUserGroupId -> Update $a ()
     clearAuthUserGroupPerms i = modifyM $ \m -> m { modelAuthUserGroupPerms = f $ modelAuthUserGroupPerms m }
       where
         f m = m `M.difference` M.filter ((i ==) . authUserGroupPermsGroup) m
 
-    -- | Delete user group from storage
+    -- Delete user group from storage
     deleteAuthUserGroup :: HasModelWrite $a => AuthUserGroupId -> Update $a ()
     deleteAuthUserGroup i = do
       clearAuthUserGroupUsers i
       clearAuthUserGroupPerms i
       modifyM $ \m -> m { modelAuthUserGroups = M.delete i $ modelAuthUserGroups m }
 
-    -- | Get paged list of user groups with total count
+    -- Get paged list of user groups with total count
     listGroupsPaged :: HasModelRead $a => Page -> PageSize -> Query $a ([WithId AuthUserGroupId AuthUserGroup], Word)
     listGroupsPaged p s = getPagedList p s <$> asksM modelAuthUserGroups
 
-    -- | Set group name
+    -- Set group name
     setAuthUserGroupName :: HasModelWrite $a => AuthUserGroupId -> Text -> Update $a ()
     setAuthUserGroupName i n = modifyM $ \m -> m { modelAuthUserGroups = M.adjust (\v -> v { authUserGroupName = n }) i $ modelAuthUserGroups m }
 
-    -- | Set group parent
+    -- Set group parent
     setAuthUserGroupParent :: HasModelWrite $a => AuthUserGroupId -> Maybe AuthUserGroupId -> Update $a ()
     setAuthUserGroupParent i p = modifyM $ \m -> m { modelAuthUserGroups = M.adjust (\v -> v { authUserGroupParent = p }) i $ modelAuthUserGroups m }
 
-    -- | Add new single use code
+    -- Add new single use code
     insertSingleUseCode :: HasModelWrite $a => UserSingleUseCode -> Update $a UserSingleUseCodeId
     insertSingleUseCode v = do
       m <- getM
@@ -365,11 +365,11 @@ deriveQueries globalStateName = [d|
       m' `seq` putM m'
       return i
 
-    -- | Set usage time of the single use code
+    -- Set usage time of the single use code
     setSingleUseCodeUsed :: HasModelWrite $a => UserSingleUseCodeId -> Maybe UTCTime -> Update $a ()
     setSingleUseCodeUsed i mt = modifyM $ \m -> m { modelUserSingleUseCodes = M.adjust (\v -> v { userSingleUseCodeUsed = mt }) i $ modelUserSingleUseCodes m }
 
-    -- | Find unused code for the user and expiration time greater than the given time
+    -- Find unused code for the user and expiration time greater than the given time
     getUnusedCode :: HasModelRead $a => SingleUseCode -> UserImplId -> UTCTime -> Query $a (Maybe (WithId UserSingleUseCodeId UserSingleUseCode))
     getUnusedCode c i t = fmap (uncurry WithField) . headMay . sorting . M.toList . M.filter f <$> asksM modelUserSingleUseCodes
       where
@@ -380,7 +380,7 @@ deriveQueries globalStateName = [d|
           && userSingleUseCodeUsed usc == Nothing
           && (userSingleUseCodeExpire usc == Nothing || userSingleUseCodeExpire usc >= Just t)
 
-    -- | Invalidate all permanent codes for user and set use time for them
+    -- Invalidate all permanent codes for user and set use time for them
     invalidatePermanentCodes :: HasModelWrite $a => UserImplId -> UTCTime -> Update $a ()
     invalidatePermanentCodes i t = modifyM $ \m -> m { modelUserSingleUseCodes = f $ modelUserSingleUseCodes m }
       where
@@ -391,14 +391,14 @@ deriveQueries globalStateName = [d|
           && userSingleUseCodeUsed usc == Nothing
           && userSingleUseCodeExpire usc == Nothing
 
-    -- | Select last valid restoration code by the given current time
+    -- Select last valid restoration code by the given current time
     selectLastRestoreCode :: HasModelRead $a => UserImplId -> UTCTime -> Query $a (Maybe (WithId UserRestoreId UserRestore))
     selectLastRestoreCode i t = fmap (uncurry WithField) . headMay . sorting . M.toList . M.filter f <$> asksM modelUserRestores
       where
         sorting = sortBy (comparing $ Down . userRestoreExpire . snd)
         f ur = userRestoreUser ur == i && userRestoreExpire ur > t
 
-    -- | Insert new restore code
+    -- Insert new restore code
     insertUserRestore :: HasModelWrite $a => UserRestore -> Update $a UserRestoreId
     insertUserRestore v = do
       m <- getM
@@ -409,30 +409,30 @@ deriveQueries globalStateName = [d|
       m' `seq` putM m'
       return i
 
-    -- | Find unexpired by the time restore code
+    -- Find unexpired by the time restore code
     findRestoreCode :: HasModelRead $a => UserImplId -> RestoreCode -> UTCTime -> Query $a (Maybe (WithId UserRestoreId UserRestore))
     findRestoreCode i rc t = fmap (uncurry WithField) . headMay . sorting . M.toList . M.filter f <$> asksM modelUserRestores
       where
         sorting = sortBy (comparing $ Down . userRestoreExpire . snd)
         f ur = userRestoreUser ur == i && userRestoreValue ur == rc && userRestoreExpire ur > t
 
-    -- | Replace restore code with new value
+    -- Replace restore code with new value
     replaceRestoreCode :: HasModelWrite $a => UserRestoreId -> UserRestore -> Update $a ()
     replaceRestoreCode i v = modifyM $ \m -> m { modelUserRestores = M.insert i v $ modelUserRestores m }
 
-    -- | Find first non-expired by the time token for user
+    -- Find first non-expired by the time token for user
     findAuthToken :: HasModelRead $a => UserImplId -> UTCTime -> Query $a (Maybe (WithId AuthTokenId AuthToken))
     findAuthToken i t = fmap (uncurry WithField) . headMay . M.toList . M.filter f <$> asksM modelAuthTokens
       where
         f atok = authTokenUser atok == i && authTokenExpire atok > t
 
-    -- | Find token by value
+    -- Find token by value
     findAuthTokenByValue :: HasModelRead $a => SimpleToken -> Query $a (Maybe (WithId AuthTokenId AuthToken))
     findAuthTokenByValue v = fmap (uncurry WithField) . headMay . M.toList . M.filter f <$> asksM modelAuthTokens
       where
         f atok = authTokenValue atok == v
 
-    -- | Insert new token
+    -- Insert new token
     insertAuthToken :: HasModelWrite $a => AuthToken -> Update $a AuthTokenId
     insertAuthToken v = do
       m <- getM
@@ -443,7 +443,7 @@ deriveQueries globalStateName = [d|
       m' `seq` putM m'
       return i
 
-    -- | Replace auth token with new value
+    -- Replace auth token with new value
     replaceAuthToken :: HasModelWrite $a => AuthTokenId -> AuthToken -> Update $a ()
     replaceAuthToken i v = modifyM $ \m -> m { modelAuthTokens = M.insert i v $ modelAuthTokens m }
     |]
