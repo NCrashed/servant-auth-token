@@ -5,11 +5,10 @@ module Servant.Server.Auth.Token.LevelDB(
   , newLevelDBEnv
   ) where
 
-import Control.Monad.Base
 import Control.Monad.Catch
 import Control.Monad.Except
+import Control.Monad.IO.Unlift
 import Control.Monad.Reader
-import Control.Monad.Trans.Control
 import Control.Monad.Trans.Resource
 import Servant.Server
 import Servant.Server.Auth.Token.Config
@@ -19,25 +18,33 @@ import Servant.Server.Auth.Token.Model
 import qualified Servant.Server.Auth.Token.LevelDB.Schema as S
 
 -- | Monad transformer that implements storage backend
-newtype LevelDBBackendT m a = LevelDBBackendT { unLevelDBBackendT :: ReaderT (AuthConfig, LevelDBEnv) (ExceptT ServantErr (ResourceT m)) a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServantErr, MonadReader (AuthConfig, LevelDBEnv), MonadThrow, MonadCatch)
+newtype LevelDBBackendT m a = LevelDBBackendT { unLevelDBBackendT :: ReaderT (AuthConfig, LevelDBEnv) (ResourceT m) a }
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader (AuthConfig, LevelDBEnv), MonadThrow, MonadCatch)
 
-deriving instance MonadBase IO m => MonadBase IO (LevelDBBackendT m)
-deriving instance (MonadBase IO m, MonadThrow m, MonadIO m) => MonadResource (LevelDBBackendT m)
+deriving instance (MonadThrow m, MonadIO m) => MonadResource (LevelDBBackendT m)
+
+instance MonadCatch m => MonadError ServantErr (LevelDBBackendT m) where
+  throwError = throwM
+  catchError = catch
 
 instance Monad m => HasAuthConfig (LevelDBBackendT m) where
   getAuthConfig = fst <$> LevelDBBackendT ask
 
-newtype StMLevelDBBackendT m a = StMLevelDBBackendT { unStMLevelDBBackendT :: StM (ReaderT (AuthConfig, LevelDBEnv) (ExceptT ServantErr m)) a }
+instance MonadUnliftIO m => MonadUnliftIO (LevelDBBackendT m) where
+  askUnliftIO = LevelDBBackendT $ withUnliftIO $ \u -> pure (UnliftIO (unliftIO u . unLevelDBBackendT))
 
-instance MonadBaseControl IO m => MonadBaseControl IO (LevelDBBackendT m) where
-    type StM (LevelDBBackendT m) a = StMLevelDBBackendT m a
-    liftBaseWith f = LevelDBBackendT $ liftBaseWith $ \q -> f (fmap StMLevelDBBackendT . q . unLevelDBBackendT)
-    restoreM = LevelDBBackendT . restoreM . unStMLevelDBBackendT
+-- newtype StMLevelDBBackendT m a = StMLevelDBBackendT { unStMLevelDBBackendT :: StM (ReaderT (AuthConfig, LevelDBEnv) (ExceptT ServantErr m)) a }
+--
+-- instance MonadBaseControl IO m => MonadBaseControl IO (LevelDBBackendT m) where
+--     type StM (LevelDBBackendT m) a = StMLevelDBBackendT m a
+--     liftBaseWith f = LevelDBBackendT $ liftBaseWith $ \q -> f (fmap StMLevelDBBackendT . q . unLevelDBBackendT)
+--     restoreM = LevelDBBackendT . restoreM . unStMLevelDBBackendT
 
 -- | Execute backend action with given connection pool.
-runLevelDBBackendT :: MonadBaseControl IO m => AuthConfig -> LevelDBEnv -> LevelDBBackendT m a -> m (Either ServantErr a)
-runLevelDBBackendT cfg db ma = runResourceT . runExceptT $ runReaderT (unLevelDBBackendT ma) (cfg, db)
+runLevelDBBackendT :: (MonadUnliftIO m, MonadCatch m) => AuthConfig -> LevelDBEnv -> LevelDBBackendT m a -> m (Either ServantErr a)
+runLevelDBBackendT cfg db ma = do
+  let ma' = runResourceT $ runReaderT (unLevelDBBackendT ma) (cfg, db)
+  catch (Right <$> ma') $ \e -> pure $ Left e
 
 -- | Helper to extract LevelDB reference
 getEnv :: Monad m => LevelDBBackendT m LevelDBEnv
@@ -45,11 +52,9 @@ getEnv  = snd <$> LevelDBBackendT ask
 
 -- | Helper to lift low-level LevelDB queries to backend monad
 liftEnv :: Monad m => (LevelDBEnv -> ResourceT m a) -> LevelDBBackendT m a
-liftEnv f = do
-  e <- getEnv
-  LevelDBBackendT . lift . lift $ f e
+liftEnv f = LevelDBBackendT . ReaderT $ f . snd
 
-instance (MonadBase IO m, MonadIO m, MonadThrow m, MonadMask m) => HasStorage (LevelDBBackendT m) where
+instance (MonadIO m, MonadThrow m, MonadMask m) => HasStorage (LevelDBBackendT m) where
   getUserImpl = liftEnv . flip S.load
   getUserImplByLogin = liftEnv . S.getUserImplByLogin
   listUsersPaged page size = liftEnv $ S.listUsersPaged page size

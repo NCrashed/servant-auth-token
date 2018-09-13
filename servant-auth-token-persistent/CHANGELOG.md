@@ -1,3 +1,8 @@
+0.7.0.0
+=======
+
+* Move to 'unliftio' from 'monad-control'
+
 0.6.3.0
 =======
 

@@ -14,10 +14,9 @@ import Data.List (sort, sortBy)
 import Data.Map.Strict (Map)
 import Data.Maybe
 import Data.Ord
-import Data.SafeCopy.Store
-import Data.SafeCopy.Store.Internal
+import Data.SafeCopy
+import Data.SafeCopy.Internal
 import Data.Set (Set)
-import Data.Store
 import Data.Text (Text)
 import Data.Time
 import Data.Typeable hiding (Proxy)

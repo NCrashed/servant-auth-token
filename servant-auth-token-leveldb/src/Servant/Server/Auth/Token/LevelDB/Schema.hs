@@ -13,10 +13,11 @@ import Data.List (sort, sortBy)
 import Data.Map.Strict (Map)
 import Data.Maybe
 import Data.Ord
-import Data.SafeCopy.Store
-import Data.SafeCopy.Store.Internal
+import Data.SafeCopy
+import Data.SafeCopy.Internal
+import Data.Serialize.Get
+import Data.Serialize.Put
 import Data.Set (Set)
-import Data.Store
 import Data.Text (Text)
 import Data.Time
 import Data.Typeable hiding (Proxy)
@@ -124,8 +125,8 @@ class Key i a | i -> a, a -> i where
   encodeKey :: i -> ByteString
 
   default encodeKey :: (SafeCopy i, Typeable i) => i -> ByteString
-  encodeKey i = runEncode $ do
-    _ <- pokeE tname
+  encodeKey i = runPut $ do
+    safePut tname
     safePut i
     where
       tname = show $ typeRep (Proxy :: Proxy i)
@@ -153,11 +154,11 @@ newLevelDBEnv db rops wopts = do
 load :: (MonadResource m, Key i a, SafeCopy a) => LevelDBEnv -> i -> m (Maybe a)
 load (LevelDBEnv db ropts _ _) i = do
   mbs <- get db ropts (encodeKey i)
-  return $ decodeExWith safeGet <$> mbs
+  return $ join $ either (const Nothing) Just . runGet safeGet <$> mbs
 
 -- | Store object by id in leveldb
 store :: (MonadResource m, Key i a, SafeCopy a) => LevelDBEnv -> i -> a -> m ()
-store (LevelDBEnv db _ wopts _) i a = put db wopts (encodeKey i) (runEncode $ safePut a)
+store (LevelDBEnv db _ wopts _) i a = put db wopts (encodeKey i) (runPut $ safePut a)
 
 -- | Remove object by given id in leveldb
 remove :: (MonadResource m, Key i a) => LevelDBEnv -> i -> m ()
@@ -510,10 +511,10 @@ deriveSafeCopy 0 'base ''ModelId
 deriveSafeCopy 0 'base ''Model
 
 instance (SafeCopy k, SafeCopy v) => SafeCopy (WithField i k v) where
-  putCopy a@(WithField k v) = contain $ do
+  putCopy (WithField k v) = contain $ do
     _ <- safePut k
     _ <- safePut v
-    return a
+    return ()
   getCopy = contain $ WithField
     <$> safeGet
     <*> safeGet

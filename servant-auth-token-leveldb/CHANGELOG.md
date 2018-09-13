@@ -1,3 +1,9 @@
+0.6.0.0
+=======
+
+* Return to original `safecopy` instead of `safecopy-store`.
+* Use `unliftio` insteal of `monad-control`.
+
 0.5.3.0
 =======
 

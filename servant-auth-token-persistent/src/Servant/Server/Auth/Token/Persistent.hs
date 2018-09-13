@@ -6,34 +6,39 @@ module Servant.Server.Auth.Token.Persistent(
   , liftDB
   ) where
 
+import Control.Monad.Catch
 import Control.Monad.Cont.Class (MonadCont(..))
 import Control.Monad.Except
+import Control.Monad.IO.Unlift
 import Control.Monad.Reader
 import Control.Monad.RWS.Class (MonadRWS)
 import Control.Monad.State.Class (MonadState(state))
-import Control.Monad.Trans.Control
 import Control.Monad.Writer.Class (MonadWriter(..))
 import Data.Aeson.WithField
 import Database.Persist
 import Database.Persist.Sql
 import Servant.Server
-import Servant.Server.Auth.Token.Monad
-import Servant.Server.Auth.Token.Model
 import Servant.Server.Auth.Token.Config
+import Servant.Server.Auth.Token.Model
+import Servant.Server.Auth.Token.Monad
 
 import qualified Servant.Server.Auth.Token.Persistent.Schema as S
 
 -- | Monad transformer that implements storage backend
 newtype PersistentBackendT m a = PersistentBackendT { unPersistentBackendT :: PersistentBackendInternal m a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadCont, MonadError ServantErr)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadCont, MonadThrow, MonadCatch)
 
-type PersistentBackendInternal m = ReaderT (AuthConfig, ConnectionPool) (ExceptT ServantErr (SqlPersistT m))
+type PersistentBackendInternal m = ReaderT (AuthConfig, ConnectionPool) (SqlPersistT m)
+
+instance MonadCatch m => MonadError ServantErr (PersistentBackendT m) where
+  throwError = throwM
+  catchError = catch
 
 instance Monad m => HasAuthConfig (PersistentBackendT m) where
   getAuthConfig = PersistentBackendT $ asks fst
 
 instance MonadTrans PersistentBackendT where
-  lift = PersistentBackendT . lift . lift . lift
+  lift = PersistentBackendT . lift . lift
 
 instance (MonadReader r m) => MonadReader r (PersistentBackendT m) where
   ask   = lift ask
@@ -50,17 +55,18 @@ instance (MonadWriter w m) => MonadWriter w (PersistentBackendT m) where
 
 instance (MonadRWS r w s m) => MonadRWS r w s (PersistentBackendT m)
 
-mapPersistentBackendT :: (m (Either ServantErr a) -> n (Either ServantErr b))
-                         -> PersistentBackendT m a -> PersistentBackendT n b
-mapPersistentBackendT f = unwrapPersistentBackendT (mapReaderT (mapExceptT (mapReaderT f)))
+mapPersistentBackendT :: (m a -> n b) -> PersistentBackendT m a -> PersistentBackendT n b
+mapPersistentBackendT f = unwrapPersistentBackendT (mapReaderT (mapReaderT f))
 
 unwrapPersistentBackendT :: (PersistentBackendInternal m a -> PersistentBackendInternal n b)
                             -> PersistentBackendT m a -> PersistentBackendT n b
 unwrapPersistentBackendT f = PersistentBackendT . f . unPersistentBackendT
 
 -- | Execute backend action with given connection pool.
-runPersistentBackendT :: MonadBaseControl IO m => AuthConfig -> ConnectionPool -> PersistentBackendT m a -> m (Either ServantErr a)
-runPersistentBackendT cfg pool ma = runSqlPool (runExceptT $ runReaderT (unPersistentBackendT ma) (cfg, pool)) pool
+runPersistentBackendT :: (MonadUnliftIO m, MonadCatch m) => AuthConfig -> ConnectionPool -> PersistentBackendT m a -> m (Either ServantErr a)
+runPersistentBackendT cfg pool ma = do
+  let ma' = runSqlPool (runReaderT (unPersistentBackendT ma) (cfg, pool)) pool
+  catch (Right <$> ma') $ \e -> pure $ Left e
 
 -- | Convert entity struct to 'WithId' version
 toWithId :: (S.ConvertStorage a' a, S.ConvertStorage (Key a') i) => Entity a' -> WithId i a
@@ -68,7 +74,7 @@ toWithId (Entity k v) = WithField (S.convertFrom k) (S.convertFrom v)
 
 -- | Helper to execute DB actions in backend monad
 liftDB :: Monad m => SqlPersistT m a -> PersistentBackendT m a
-liftDB = PersistentBackendT . lift . lift
+liftDB = PersistentBackendT . lift
 
 instance (MonadIO m) => HasStorage (PersistentBackendT m) where
   getUserImpl = liftDB . fmap (fmap S.convertFrom) . get . S.convertTo
