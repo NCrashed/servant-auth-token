@@ -1,5 +1,5 @@
 name:                servant-auth-token-acid
-version:             0.5.3.1
+version:             0.5.4.0
 synopsis:            Acid-state backend for servant-auth-token server
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme
