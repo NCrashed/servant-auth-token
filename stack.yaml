@@ -44,7 +44,7 @@ packages:
 - 'example/acid'
 - 'example/persistent'
 #- 'example/leveldb'
-- '../servant-auth-token-api'
+#- '../servant-auth-token-api'
 # - location:
 #     git: https://github.com/NCrashed/servant-auth-token-api.git
 #     commit: d011f7bfecd18d07ff67ce9f67f8741e110a2719
@@ -62,7 +62,7 @@ extra-deps:
 - aeson-injector-1.1.1.0
 - pwstore-fast-2.4.4
 - rocksdb-haskell-1.0.1
-# - servant-auth-token-api-0.5.3.0
+- servant-auth-token-api-0.5.3.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}
