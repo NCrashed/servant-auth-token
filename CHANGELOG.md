@@ -1,3 +1,8 @@
+0.5.5.0
+=======
+
+* Allow passing client side hashed password to signin endpoint. 
+
 0.5.4.0
 =======
 

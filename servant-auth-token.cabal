@@ -1,5 +1,5 @@
 name:                servant-auth-token
-version:             0.5.4.0
+version:             0.5.5.0
 synopsis:            Servant based API and server for token based authorisation
 description:         Please see README.md
 homepage:            https://github.com/ncrashed/servant-auth-token#readme
@@ -62,6 +62,7 @@ library
   build-depends:
       base                    >= 4.8    && < 5
     , aeson-injector          >= 1.1    && < 1.2
+    , byteable                >= 0.1    && < 0.2
     , bytestring              >= 0.10   && < 0.11
     , containers              >= 0.5    && < 0.6
     , http-api-data           >= 0.3.5  && < 0.4

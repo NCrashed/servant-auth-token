@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-|
 Module      : Servant.Server.Auth.Token
@@ -78,6 +79,7 @@ import Control.Monad.Except
 import Crypto.PasswordStore
 import Data.Aeson.Unit
 import Data.Aeson.WithField
+import Data.Byteable (Byteable, toBytes, constEqBytes)
 import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
@@ -98,6 +100,7 @@ import Servant.Server.Auth.Token.Pagination
 import Servant.Server.Auth.Token.Restore
 import Servant.Server.Auth.Token.SingleUse
 
+import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy as BS
 
 -- | Implementation of AuthAPI
@@ -128,7 +131,18 @@ authServer =
   :<|> authGetUserIdMethod
   :<|> authFindUserByLogin
 
--- | Implementation of "signin" method
+-- | Implementation of "signin" method.
+--
+-- You can pass hashed password in format of `pwstore`. The library will
+-- strengthen the hash and compare with hash in DB in this case. The feature
+-- allow you to previously hash on client side to not pass the password as plain
+-- text to server. Note that you should have the same salt in the passwords.
+--
+-- Also avoid having strength of hashed password less that is passed from client side.
+--
+-- Format of hashed password: "sha256|strength|salt|hash", where strength is an unsigned int, salt
+-- is a base64-encoded 16-byte random number, and hash is a base64-encoded hash
+-- value.
 authSignin :: AuthHandler m
   => Maybe Login -- ^ Login query parameter
   -> Maybe Password -- ^ Password query parameter
@@ -140,14 +154,38 @@ authSignin mlogin mpass mexpire = do
   WithField uid UserImpl{..} <- guardLogin login pass
   OnlyField <$> getAuthToken uid mexpire
   where
+  checkPassword pass uimpl@UserImpl{..} = case readPwHash pass of
+    Nothing -> pass `verifyPassword` passToByteString userImplPassword
+    Just (passedStrength, passedSalt, passedHash) -> case readPwHash $ passToByteString userImplPassword of
+      Nothing -> False
+      Just (storedStrength, storedSalt, storedHash) -> if
+        | not (passedSalt `constEqBytes` storedSalt) -> False
+        | passedStrength == storedStrength -> passedHash `constEqBytes` storedHash
+        | passedStrength < storedStrength -> let
+            newPass = strengthenPassword pass storedStrength
+            in checkPassword newPass uimpl
+        | otherwise -> let
+            newUserPass = strengthenPassword (passToByteString userImplPassword) passedStrength
+            in checkPassword pass uimpl { userImplPassword = byteStringToPass newUserPass }
   guardLogin login pass = do -- check login and password, return passed user
     muser <- getUserImplByLogin login
     let err = throw401 "Cannot find user with given combination of login and pass"
     case muser of
       Nothing -> err
-      Just user@(WithField _ UserImpl{..}) -> if passToByteString pass `verifyPassword` passToByteString userImplPassword
+      Just user@(WithField _ uimpl) -> if checkPassword (passToByteString pass) uimpl
         then return user
         else err
+
+-- | Try to parse a password hash.
+readPwHash :: BC.ByteString -> Maybe (Int, BC.ByteString, BC.ByteString)
+readPwHash pw | length broken /= 4
+                || algorithm /= "sha256"
+                || BC.length hash /= 44 = Nothing
+              | otherwise = case BC.readInt strBS of
+                              Just (strength, _) -> Just (strength, salt, hash)
+                              Nothing -> Nothing
+    where broken = BC.split '|' pw
+          [algorithm, strBS, salt, hash] = broken
 
 -- | Implementation of "signin" method
 authSigninPost :: AuthHandler m
