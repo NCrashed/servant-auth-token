@@ -176,17 +176,6 @@ authSignin mlogin mpass mexpire = do
         then return user
         else err
 
--- | Try to parse a password hash.
-readPwHash :: BC.ByteString -> Maybe (Int, BC.ByteString, BC.ByteString)
-readPwHash pw | length broken /= 4
-                || algorithm /= "sha256"
-                || BC.length hash /= 44 = Nothing
-              | otherwise = case BC.readInt strBS of
-                              Just (strength, _) -> Just (strength, salt, hash)
-                              Nothing -> Nothing
-    where broken = BC.split '|' pw
-          [algorithm, strBS, salt, hash] = broken
-
 -- | Implementation of "signin" method
 authSigninPost :: AuthHandler m
   => AuthSigninPostBody -- ^ Holds login, password and token lifetime

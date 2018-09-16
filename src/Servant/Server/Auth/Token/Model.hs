@@ -1,4 +1,5 @@
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE MultiWayIf #-}
 {-|
 Module      : Servant.Server.Auth.Token.Model
 Description : Internal operations with RDBMS
@@ -59,6 +60,7 @@ module Servant.Server.Auth.Token.Model(
   , patchUserGroup
   -- * Low-level
   , makeUserInfo
+  , readPwHash
   ) where
 
 import Control.Monad
@@ -66,15 +68,10 @@ import Control.Monad.Cont (ContT)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.IO.Class
 import Control.Monad.Reader (ReaderT)
-import qualified Control.Monad.RWS.Lazy as LRWS
-import qualified Control.Monad.RWS.Strict as SRWS
-import qualified Control.Monad.State.Lazy as LS
-import qualified Control.Monad.State.Strict as SS
-import qualified Control.Monad.Writer.Lazy as LW
-import qualified Control.Monad.Writer.Strict as SW
 import Control.Monad.Trans.Class (MonadTrans(lift))
 import Crypto.PasswordStore
 import Data.Aeson.WithField
+import Data.ByteString (ByteString)
 import Data.Int
 import Data.Maybe
 import Data.Monoid
@@ -82,7 +79,14 @@ import Data.Text (Text)
 import Data.Time
 import GHC.Generics
 
+import qualified Control.Monad.RWS.Lazy as LRWS
+import qualified Control.Monad.RWS.Strict as SRWS
+import qualified Control.Monad.State.Lazy as LS
+import qualified Control.Monad.State.Strict as SS
+import qualified Control.Monad.Writer.Lazy as LW
+import qualified Control.Monad.Writer.Strict as SW
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BC
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Sequence as S
@@ -479,13 +483,33 @@ setUserPermissions uid perms = do
   deleteUserPermissions uid
   forM_ perms $ void . insertUserPerm . UserPerm uid
 
+-- | Try to parse a password hash.
+readPwHash :: BC.ByteString -> Maybe (Int, BC.ByteString, BC.ByteString)
+readPwHash pw | length broken /= 4
+                || algorithm /= "sha256"
+                || BC.length hash /= 44 = Nothing
+              | otherwise = case BC.readInt strBS of
+                              Just (strength, _) -> Just (strength, salt, hash)
+                              Nothing -> Nothing
+    where broken = BC.split '|' pw
+          [algorithm, strBS, salt, hash] = broken
+
+-- | Hash password with given strengh, you can pass already hashed password
+-- to specified strength
+makeHashedPassword :: MonadIO m => Int -> Password -> m Password
+makeHashedPassword strength pass =liftIO $ case readPwHash . passToByteString $ pass of
+  Nothing ->  fmap byteStringToPass $ makePassword (passToByteString pass) strength
+  Just (passStrength, passSalt, passHash) -> if
+    | passStrength >= strength -> pure pass
+    | otherwise -> pure $ byteStringToPass $ strengthenPassword (passToByteString pass) strength
+
 -- | Creation of new user
 createUser :: HasStorage m => Int -> Login -> Password -> Email -> [Permission] -> m UserImplId
 createUser strength login pass email perms = do
-  pass' <- liftIO $ makePassword (passToByteString pass) strength
+  pass' <- makeHashedPassword strength pass
   i <- insertUserImpl UserImpl {
       userImplLogin = login
-    , userImplPassword = byteStringToPass pass'
+    , userImplPassword = pass'
     , userImplEmail = email
     }
   forM_ perms $ void . insertUserPerm . UserPerm i
@@ -531,8 +555,8 @@ patchUser strength PatchUser{..} =
 setUserPassword' :: MonadIO m => Int -- ^ Password strength
   -> Password -> UserImpl -> m UserImpl
 setUserPassword' strength pass user = do
-  pass' <- liftIO $ makePassword (passToByteString pass) strength
-  return $ user { userImplPassword = byteStringToPass pass' }
+  pass' <- makeHashedPassword strength pass
+  return $ user { userImplPassword = pass' }
 
 -- | Get all groups the user belongs to
 getUserGroups :: HasStorage m => UserImplId -> m [UserGroupId]

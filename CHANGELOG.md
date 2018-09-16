@@ -1,7 +1,12 @@
+0.5.6.0
+=======
+
+* Allow passing client side hashed passwords for signup and restore.
+
 0.5.5.0
 =======
 
-* Allow passing client side hashed password to signin endpoint. 
+* Allow passing client side hashed password to signin endpoint.
 
 0.5.4.0
 =======
