@@ -6,7 +6,7 @@ An itegration of the backend is simple:
 ``` haskell
 -- | Special monad for authorisation actions
 newtype AuthM a = AuthM { unAuthM :: PersistentBackendT IO a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServantErr, HasStorage, HasAuthConfig)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServerError , HasStorage, HasAuthConfig)
 
 -- | Execution of authorisation actions that require 'AuthHandler' context
 runAuth :: AuthM a -> ServerM a

@@ -7,6 +7,7 @@
 {-# language KindSignatures #-}
 {-# language RecordWildCards #-}
 {-# language RankNTypes #-}
+{-# language UndecidableInstances #-}
 
 module Servant.Server.Auth.Token.Combinator
   ( AuthPerm
