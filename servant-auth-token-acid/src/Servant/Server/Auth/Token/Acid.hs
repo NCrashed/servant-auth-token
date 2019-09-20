@@ -16,8 +16,8 @@ import Servant.Server.Auth.Token.Config
 import Servant.Server.Auth.Token.Model
 
 -- | Monad transformer that implements storage backend
-newtype AcidBackendT st m a = AcidBackendT { unAcidBackendT :: ReaderT (AuthConfig, AcidState st) (ExceptT ServantErr m) a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServantErr, MonadReader (AuthConfig, AcidState st))
+newtype AcidBackendT st m a = AcidBackendT { unAcidBackendT :: ReaderT (AuthConfig, AcidState st) (ExceptT ServerError m) a }
+  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServerError, MonadReader (AuthConfig, AcidState st))
 
 deriving instance MonadBase IO m => MonadBase IO (AcidBackendT st m)
 
@@ -32,7 +32,7 @@ instance MonadBaseControl IO m => MonadBaseControl IO (AcidBackendT st m) where
     restoreM = AcidBackendT . restoreM . unStMAcidBackendT
 
 -- | Execute backend action with given connection pool.
-runAcidBackendT :: AuthConfig -> AcidState st -> AcidBackendT st m a -> m (Either ServantErr a)
+runAcidBackendT :: AuthConfig -> AcidState st -> AcidBackendT st m a -> m (Either ServerError a)
 runAcidBackendT cfg db ma = runExceptT $ runReaderT (unAcidBackendT ma) (cfg, db)
 
 -- | Derives acid-state 'HasStorage' instance for functions that are generated in 'makeModelAcidic'.

@@ -23,7 +23,7 @@ newtype LevelDBBackendT m a = LevelDBBackendT { unLevelDBBackendT :: ReaderT (Au
 
 deriving instance (MonadThrow m, MonadIO m) => MonadResource (LevelDBBackendT m)
 
-instance MonadCatch m => MonadError ServantErr (LevelDBBackendT m) where
+instance MonadCatch m => MonadError ServerError (LevelDBBackendT m) where
   throwError = throwM
   catchError = catch
 
@@ -33,7 +33,7 @@ instance Monad m => HasAuthConfig (LevelDBBackendT m) where
 instance MonadUnliftIO m => MonadUnliftIO (LevelDBBackendT m) where
   askUnliftIO = LevelDBBackendT $ withUnliftIO $ \u -> pure (UnliftIO (unliftIO u . unLevelDBBackendT))
 
--- newtype StMLevelDBBackendT m a = StMLevelDBBackendT { unStMLevelDBBackendT :: StM (ReaderT (AuthConfig, LevelDBEnv) (ExceptT ServantErr m)) a }
+-- newtype StMLevelDBBackendT m a = StMLevelDBBackendT { unStMLevelDBBackendT :: StM (ReaderT (AuthConfig, LevelDBEnv) (ExceptT ServerError m)) a }
 --
 -- instance MonadBaseControl IO m => MonadBaseControl IO (LevelDBBackendT m) where
 --     type StM (LevelDBBackendT m) a = StMLevelDBBackendT m a
@@ -41,7 +41,7 @@ instance MonadUnliftIO m => MonadUnliftIO (LevelDBBackendT m) where
 --     restoreM = LevelDBBackendT . restoreM . unStMLevelDBBackendT
 
 -- | Execute backend action with given connection pool.
-runLevelDBBackendT :: (MonadUnliftIO m, MonadCatch m) => AuthConfig -> LevelDBEnv -> LevelDBBackendT m a -> m (Either ServantErr a)
+runLevelDBBackendT :: (MonadUnliftIO m, MonadCatch m) => AuthConfig -> LevelDBEnv -> LevelDBBackendT m a -> m (Either ServerError a)
 runLevelDBBackendT cfg db ma = do
   let ma' = runResourceT $ runReaderT (unLevelDBBackendT ma) (cfg, db)
   catch (Right <$> ma') $ \e -> pure $ Left e

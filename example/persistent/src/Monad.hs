@@ -56,7 +56,7 @@ newServerEnv cfg = do
 -- | Server monad that holds internal environment
 newtype ServerM a = ServerM { unServerM :: ReaderT ServerEnv (LoggingT Handler) a }
   deriving (Functor, Applicative, Monad, MonadIO, MonadBase IO, MonadReader ServerEnv
-    , MonadLogger, MonadLoggerIO, MonadThrow, MonadCatch, MonadError ServantErr)
+    , MonadLogger, MonadLoggerIO, MonadThrow, MonadCatch, MonadError ServerError)
 
 newtype StMServerM a = StMServerM { unStMServerM :: StM (ReaderT ServerEnv (LoggingT Handler)) a }
 
@@ -83,7 +83,7 @@ runServerMIO env m = do
 
 -- | Special monad for authorisation actions
 newtype AuthM a = AuthM { unAuthM :: PersistentBackendT IO a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServantErr, HasStorage, HasAuthConfig)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServerError, HasStorage, HasAuthConfig)
 
 -- | Execution of authorisation actions that require 'AuthHandler' context
 runAuth :: AuthM a -> ServerM a

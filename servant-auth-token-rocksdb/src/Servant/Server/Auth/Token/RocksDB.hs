@@ -19,8 +19,8 @@ import Servant.Server.Auth.Token.Model
 import qualified Servant.Server.Auth.Token.RocksDB.Schema as S
 
 -- | Monad transformer that implements storage backend
-newtype RocksDBBackendT m a = RocksDBBackendT { unRocksDBBackendT :: ReaderT (AuthConfig, RocksDBEnv) (ExceptT ServantErr (ResourceT m)) a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServantErr, MonadReader (AuthConfig, RocksDBEnv), MonadThrow, MonadCatch)
+newtype RocksDBBackendT m a = RocksDBBackendT { unRocksDBBackendT :: ReaderT (AuthConfig, RocksDBEnv) (ExceptT ServerError (ResourceT m)) a }
+  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServerError, MonadReader (AuthConfig, RocksDBEnv), MonadThrow, MonadCatch)
 
 deriving instance MonadBase IO m => MonadBase IO (RocksDBBackendT m)
 deriving instance (MonadBase IO m, MonadThrow m, MonadIO m) => MonadResource (RocksDBBackendT m)
@@ -28,7 +28,7 @@ deriving instance (MonadBase IO m, MonadThrow m, MonadIO m) => MonadResource (Ro
 instance Monad m => HasAuthConfig (RocksDBBackendT m) where
   getAuthConfig = fst <$> RocksDBBackendT ask
 
-newtype StMRocksDBBackendT m a = StMRocksDBBackendT { unStMRocksDBBackendT :: StM (ReaderT (AuthConfig, RocksDBEnv) (ExceptT ServantErr m)) a }
+newtype StMRocksDBBackendT m a = StMRocksDBBackendT { unStMRocksDBBackendT :: StM (ReaderT (AuthConfig, RocksDBEnv) (ExceptT ServerError m)) a }
 
 instance MonadBaseControl IO m => MonadBaseControl IO (RocksDBBackendT m) where
     type StM (RocksDBBackendT m) a = StMRocksDBBackendT m a
@@ -36,7 +36,7 @@ instance MonadBaseControl IO m => MonadBaseControl IO (RocksDBBackendT m) where
     restoreM = RocksDBBackendT . restoreM . unStMRocksDBBackendT
 
 -- | Execute backend action with given connection pool.
-runRocksDBBackendT :: MonadBaseControl IO m => AuthConfig -> RocksDBEnv -> RocksDBBackendT m a -> m (Either ServantErr a)
+runRocksDBBackendT :: MonadBaseControl IO m => AuthConfig -> RocksDBEnv -> RocksDBBackendT m a -> m (Either ServerError a)
 runRocksDBBackendT cfg db ma = runResourceT . runExceptT $ runReaderT (unRocksDBBackendT ma) (cfg, db)
 
 -- | Helper to extract RocksDB reference
