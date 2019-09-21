@@ -30,7 +30,7 @@ newtype PersistentBackendT m a = PersistentBackendT { unPersistentBackendT :: Pe
 
 type PersistentBackendInternal m = ReaderT (AuthConfig, ConnectionPool) (SqlPersistT m)
 
-instance MonadCatch m => MonadError ServantErr (PersistentBackendT m) where
+instance MonadCatch m => MonadError ServerError (PersistentBackendT m) where
   throwError = throwM
   catchError = catch
 
@@ -63,7 +63,7 @@ unwrapPersistentBackendT :: (PersistentBackendInternal m a -> PersistentBackendI
 unwrapPersistentBackendT f = PersistentBackendT . f . unPersistentBackendT
 
 -- | Execute backend action with given connection pool.
-runPersistentBackendT :: (MonadUnliftIO m, MonadCatch m) => AuthConfig -> ConnectionPool -> PersistentBackendT m a -> m (Either ServantErr a)
+runPersistentBackendT :: (MonadUnliftIO m, MonadCatch m) => AuthConfig -> ConnectionPool -> PersistentBackendT m a -> m (Either ServerError a)
 runPersistentBackendT cfg pool ma = do
   let ma' = runSqlPool (runReaderT (unPersistentBackendT ma) (cfg, pool)) pool
   catch (Right <$> ma') $ \e -> pure $ Left e

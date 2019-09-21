@@ -29,7 +29,7 @@ import Servant.Server.Auth.Token.Error as Reexport
 import Servant.Server.Auth.Token.Model
 
 -- | Context that is needed to run the auth server
-type AuthHandler m = (HasAuthConfig m, MonadError ServantErr m, MonadIO m, HasStorage m)
+type AuthHandler m = (HasAuthConfig m, MonadError ServerError m, MonadIO m, HasStorage m)
 
 -- | If the value is 'Nothing', throw 400 response
 require :: AuthHandler m => BS.ByteString -> Maybe a -> m a

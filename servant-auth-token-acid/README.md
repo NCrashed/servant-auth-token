@@ -47,7 +47,7 @@ deriveAcidHasStorage ''DB
 
 -- | Special monad for authorisation actions
 newtype AuthM a = AuthM { unAuthM :: AcidBackendT DB IO a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServantErr, HasAuthConfig, HasStorage)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServerError, HasAuthConfig, HasStorage)
 
 -- | Execution of authorisation actions that require 'AuthHandler' context
 runAuth :: AuthM a -> ServerM a

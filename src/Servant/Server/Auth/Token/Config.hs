@@ -82,7 +82,7 @@ data AuthConfig = AuthConfig {
   -- Default value doesn't validate passwords at all.
   , passwordValidator :: !(Text -> Maybe Text)
   -- | Transformation of errors produced by the auth server
-  , servantErrorFormer :: !(ServantErr -> ServantErr)
+  , servantErrorFormer :: !(ServerError-> ServerError)
   -- | Default size of page for pagination
   , defaultPageSize :: !Word
   -- | User specified method of sending single usage code for authorisation.

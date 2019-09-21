@@ -53,7 +53,7 @@ newServerEnv cfg = do
 -- | Server monad that holds internal environment
 newtype ServerM a = ServerM { unServerM :: ReaderT ServerEnv (LoggingT Handler) a }
   deriving (Functor, Applicative, Monad, MonadIO, MonadBase IO, MonadReader ServerEnv
-    , MonadLogger, MonadLoggerIO, MonadThrow, MonadCatch, MonadError ServantErr)
+    , MonadLogger, MonadLoggerIO, MonadThrow, MonadCatch, MonadError ServerError)
 
 newtype StMServerM a = StMServerM { unStMServerM :: StM (ReaderT ServerEnv (LoggingT Handler)) a }
 
@@ -83,7 +83,7 @@ deriveAcidHasStorage ''DB
 
 -- | Special monad for authorisation actions
 newtype AuthM a = AuthM { unAuthM :: AcidBackendT DB IO a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServantErr, HasAuthConfig, HasStorage)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadError ServerError, HasAuthConfig, HasStorage)
 
 -- | Execution of authorisation actions that require 'AuthHandler' context
 runAuth :: AuthM a -> ServerM a

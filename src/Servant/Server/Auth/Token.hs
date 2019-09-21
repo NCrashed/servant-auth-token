@@ -44,6 +44,7 @@ module Servant.Server.Auth.Token(
   , AuthAction(..)
   -- * API methods
   , authSignin
+  , authSigninPost
   , authSigninGetCode
   , authSigninPostCode
   , authTouch
